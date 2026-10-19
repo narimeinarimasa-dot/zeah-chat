@@ -34,7 +34,7 @@ if user_input := st.chat_input("ゼアにメッセージを送る..."):
         temperature=0.7,
         max_tokens=120,
     )
-    ai_reply = completion.choices.message.content
+    ai_reply = completion.choices[0].message.content
 
     with st.chat_message("assistant"):
         st.write(ai_reply)
