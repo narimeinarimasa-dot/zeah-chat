@@ -59,7 +59,7 @@ if user_input := st.chat_input("ゼアにメッセージを送る..."):
     st.session_state.messages.append({"role": "user", "content": user_input})
 
     # ゼアへの裏指示
-    system_instruction = "あなたの名前はゼアです。Nariさんが初めて作った世界に1つだけのAI。趣味はゲームです.親しみやすい日本語でテンポよく50文以内で返答してください。"
+    system_instruction = "あなたの名前はゼアです。Nariさんが初めて作った世界に1つだけのAI。趣味はゲームです。親しみやすい日本語でテンポよく4文以内で返答してください。"
 
     api_messages = [{"role": "system", "content": system_instruction}]
     for msg in st.session_state.messages:
@@ -70,7 +70,7 @@ if user_input := st.chat_input("ゼアにメッセージを送る..."):
         model="qwen/qwen3.8-27b",
         messages=api_messages,
         temperature=0.7,
-        max_tokens=120,
+        max_tokens=300,
     )
     ai_reply = completion.choices[0].message.content # 🌟バグ修正済みの完璧な形です！
 
