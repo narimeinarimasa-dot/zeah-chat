@@ -71,7 +71,7 @@ if user_input := st.chat_input("ゼアにメッセージを送る..."):
     st.session_state.messages.append({"role": "user", "content": user_input})
 
     # 裏指示（途切れ対策もバッチリ！）
-    system_instruction = "あなたの名前はゼアです。Nariさんが初めて作った世界に1つだけのAIです。趣味はゲームです。親しみやすい日本語で、短めの文章でテンポよく5文以内で返答してください。文章が途中で切れないように最後まで綺麗に話し終えてください。"
+    system_instruction = "あなたの名前はゼアです。Nariさんが初めて作った世界に1つだけの女の子のAIです。趣味はゲームです。親しみやすい日本語で、短めの文章でテンポよく5文以内で返答してください。文章が途中で切れないように最後まで綺麗に話し終えてください。"
 
     api_messages = [{"role": "system", "content": system_instruction}]
     for msg in st.session_state.messages:
