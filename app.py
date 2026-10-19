@@ -13,7 +13,7 @@ st.set_page_config(page_title="ゼア Chat", page_icon="🎮")
 # ==========================================
 # Nariさんが決めたい「秘密のパスワード」をここに英数字で書きます
 # （例：'nari2026' や 'zeah123' など好きな文字に変えてね！）
-CORRECT_PASSWORD = "ここに好きなパスワードを決めて書いてね"
+CORRECT_PASSWORD = "zeah-nari-10-19"
 
 # アプリの初期状態（最初はロックがかかっている状態にする）
 if "password_correct" not in st.session_state:
