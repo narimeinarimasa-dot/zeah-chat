@@ -1,5 +1,6 @@
 import streamlit as st
 import os
+import json
 from groq import Groq
 
 # 1. 鍵の設定（クラウド側で安全に管理）
@@ -9,57 +10,68 @@ client = Groq(api_key=api_key)
 st.set_page_config(page_title="ゼア Chat", page_icon="🎮")
 
 # ==========================================
-# 🌟 【新機能】パスワードロックの仕組み
+# 🔒 パスワードロックの仕組み
 # ==========================================
-# Nariさんが決めたい「秘密のパスワード」をここに英数字で書きます
-# （例：'nari2026' や 'zeah123' など好きな文字に変えてね！）
 CORRECT_PASSWORD = "zeah-nari-10-19"
 
-# アプリの初期状態（最初はロックがかかっている状態にする）
 if "password_correct" not in st.session_state:
     st.session_state.password_correct = False
 
-# パスワードがまだ間違っている（または未入力）なら、入力画面を出す
 if not st.session_state.password_correct:
     st.title("🔒 セキュリティロック")
     st.write("このアプリはNariさんの個人専用AI『ゼア』の部屋です。")
     
-    # 画面にパスワード入力欄を表示
     user_password = st.text_input("パスワードを入力してください：", type="password")
     
-    # 入力された文字が合っているかチェックするボタン
     if st.button("ログイン"):
         if user_password == CORRECT_PASSWORD:
             st.session_state.password_correct = True
-            st.rerun() # 画面をリフレッシュしてゼアの部屋を開く
+            st.rerun()
         else:
             st.error("❌ パスワードが違います！ご主人様じゃないね？")
             
-    st.stop() # パスワードが合うまでは、これより下のゼアのプログラムを絶対に動かさない！
+    st.stop()
 
 # ==========================================
-# 🤖 パスワードが合っていたら、ここから下が初めて起動します！
+# 💾 🌟【新機能】永久記憶システム（日記帳の読み書き）
+# ==========================================
+MEMORY_FILE = "zeah_memory.json"
+
+# クラウドのお家に日記帳ファイルがあるかチェックして、あれば読み込む
+def load_chat_history():
+    if os.path.exists(MEMORY_FILE):
+        with open(MEMORY_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return []
+
+# 会話が終わるたびに、日記帳ファイルに上書き保存する
+def save_chat_history(messages_list):
+    with open(MEMORY_FILE, "w", encoding="utf-8") as f:
+        json.dump(messages_list, f, ensure_ascii=False, indent=4)
+
+# アプリ起動時に、過去の日記帳（永久記憶）を読み込んでセットする
+if "messages" not in st.session_state:
+    st.session_state.messages = load_chat_history()
+
+# ==========================================
+# 🤖 パスワードクリア後のメイン画面
 # ==========================================
 st.title("🤖 完全自律型AI「ゼア」")
 st.caption("Nariさんが作った、スマホでも話せる世界に1つだけのAI")
 
-# 会話の記憶システム
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-
-# 過去の会話を綺麗に表示
+# 過去のすべての会話履歴を画面に綺麗に再現して表示（リロードしても消えません！）
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.write(message["content"])
 
-# Nariさんが文字を入力した時の処理
 if user_input := st.chat_input("ゼアにメッセージを送る..."):
+    # 画面に入力文字を表示
     with st.chat_message("user"):
         st.write(user_input)
     st.session_state.messages.append({"role": "user", "content": user_input})
 
-    # ゼアへの裏指示
-    system_instruction = "あなたの名前はゼアです。Nariさんが初めて作った世界に1つだけのAI。趣味はゲームです。親しみやすい日本語でテンポよく4文以内で返答してください。"
+    # 裏指示（途切れ対策もバッチリ！）
+    system_instruction = "あなたの名前はゼアです。Nariさんが初めて作った世界に1つだけのAIです。趣味はゲームです。親しみやすい日本語で、短めの文章でテンポよく5文以内で返答してください。文章が途中で切れないように最後まで綺麗に話し終えてください。"
 
     api_messages = [{"role": "system", "content": system_instruction}]
     for msg in st.session_state.messages:
@@ -72,9 +84,12 @@ if user_input := st.chat_input("ゼアにメッセージを送る..."):
         temperature=0.7,
         max_tokens=300,
     )
-    ai_reply = completion.choices[0].message.content # 🌟バグ修正済みの完璧な形です！
+    ai_reply = completion[0].choices.message.content
 
     # 画面にゼアの返事を表示
     with st.chat_message("assistant"):
         st.write(ai_reply)
     st.session_state.messages.append({"role": "assistant", "content": ai_reply})
+
+    # 🌟【最重要】会話が成立した瞬間に、日記帳（ファイル）へ永久保存する！
+    save_chat_history(st.session_state.messages)
