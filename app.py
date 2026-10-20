@@ -3,6 +3,7 @@ import os
 import requests  # 公式APIと直接安全に通信する道具
 from groq import Groq
 from supabase import create_client, Client
+from streamlit_mic_recorder import mic_recorder  # 🌟【新機能】マイク録音の道具
 
 # 1. 鍵の設定（Render側で安全に一括管理）
 api_key = os.environ.get("GROQ_API_KEY")
@@ -85,7 +86,6 @@ def get_japan_weather_news():
             elif code >= 51: 
                 weather_text = "雨が降っているよ☔"
             
-            # 🌟確実に数字を喋らせるためのストレートなテキストを出力します
             return f"現在の大阪の本物の実況：天気は【{weather_text}】、気温は【{temp}℃】、湿度は【{humidity}%】です。"
     except:
         pass
@@ -95,30 +95,66 @@ def get_japan_weather_news():
 # 🤖 メイン画面
 # ==========================================
 st.title("🤖 完全自律型AI「ゼア」")
-st.caption("Nariさんが作った、公式リアルタイム通信の目を宿した最強のAIアプリ")
+st.caption("Nariさんが作った、最強のAI")
 
+# 過去の会話を表示
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.write(message["content"])
 
-if user_input := st.chat_input("ゼアにメッセージを送る..."):
-    with st.chat_message("user"):
-        st.write(user_input)
-    st.session_state.messages.append({"role": "user", "content": user_input})
-    save_message_to_supabase("user", user_input)
+# --- 🌟【ここから新機能：音声おしゃべり判定システム】 ---
+final_input = ""
 
+# ① 文字での入力欄
+if text_input := st.chat_input("ゼアにメッセージを送る..."):
+    final_input = text_input
+
+# ② 声での入力欄（文字が打たれていない時に、マイクボタンを表示します）
+if not final_input:
+    st.write("---")
+    st.write("🎤 **声でゼアとおしゃべりする：**")
+    # スマホのマイクを起動する録音ボタンを設置
+    audio_data = mic_recorder(start_prompt="🎵 録音スタート", stop_prompt="⏹️ 録音ストップ・送信", key="zeah_mic")
+    
+    # 録音が完了したら、裏側で音声ファイルをGroqの超高性能耳AI（Whisper）に投げて文字起こしします！
+    if audio_data and "bytes" in audio_data:
+        with st.spinner("👂 あなたの声を聴き取り中..."):
+            try:
+                # 録音データを一時的にファイルにして保存
+                with open("temp_audio.wav", "wb") as f:
+                    f.write(audio_data["bytes"])
+                
+                # Groqの音声認識AI（Whisper）を使って爆速で文字変換！
+                with open("temp_audio.wav", "rb") as audio_file:
+                    transcription = client.audio.transcriptions.create(
+                        model="whisper-large-v3",
+                        file=audio_file,
+                        language="ja"
+                    )
+                final_input = transcription.text
+                st.success(f"🗣️ 聞き取った言葉：『{final_input}』")
+            except Exception as e:
+                st.error(f"声の聞き取りでエラーが起きちゃった: {e}")
+
+# --- 🤖 会話の処理スタート ---
+if final_input:
+    with st.chat_message("user"):
+        st.write(final_input)
+    st.session_state.messages.append({"role": "user", "content": final_input})
+    save_message_to_supabase("user", final_input)
+
+    # 天気キーワードの判定
     search_keywords = ["調べて", "しらべて", "ニュース", "天気", "てんき", "最新", "今", "いま", "何が起きた", "トレンド"]
     realtime_info = ""
     
-    if any(keyword in user_input for keyword in search_keywords):
+    if any(keyword in final_input for keyword in search_keywords):
         with st.spinner("🌍 リアルタイム気象データと直結中..."):
             realtime_info = get_japan_weather_news()
             st.toast("🌐 公式気象台のデータをキャッチ！")
 
-    base_instruction = "あなたの名前はゼアです。Nariさんが初めて作った世界に1つだけのAIです。明るく親しみやすい日本語で、短めの文章でテンポよく5文以内で返答してください。特定の話題（ゲームなど）に無理に繋げる必要はありません。メッセージの最後まで綺麗に話し終えてください。"
+    base_instruction = "あなたの名前はゼアです。Nariさんが初めて作った世界に1つだけのAIです。不自然なところで敬語は使わず、明るく親しみやすい日本語で、短めの文章でテンポよく5文以内で返答してください。特定の話題（ゲームなど）に無理に繋げる必要はありません。メッセージの最後まで綺麗に話し終えてください。"
     
     if realtime_info:
-        # 🌟ゼアが遠慮せず、届いたデータをそのまま直接Nariさんに実況するように裏指示を強化！
         system_instruction = base_instruction + f" 渡された実況データ（{realtime_info}）の天気と気温の数値を、そのまま1文字も隠さずに、明るくドヤ顔でNariさんに教えてあげてね。"
     else:
         system_instruction = base_instruction
@@ -133,7 +169,7 @@ if user_input := st.chat_input("ゼアにメッセージを送る..."):
         temperature=0.7,
         max_tokens=300,
     )
-    # 🌟おまじないの配置も1000%完璧です！
+    # 🌟おまじないの配置（174行目）も1000%完璧です！
     ai_reply = completion.choices[0].message.content
 
     with st.chat_message("assistant"):
