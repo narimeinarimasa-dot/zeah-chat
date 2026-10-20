@@ -1,7 +1,7 @@
 import streamlit as st  
 import os
 import requests  # 公式APIと直接安全に通信する道具
-import streamlit.components.v1 as components  # 🌟自動送信の裏技を動かす道具
+import streamlit.components.v1 as components  # JavaScriptを直接動かす道具
 from groq import Groq
 from supabase import create_client, Client
 
@@ -86,7 +86,7 @@ def get_japan_weather_news():
             elif code >= 51: 
                 weather_text = "雨が降っているよ☔"
             
-            return f"現在の大阪の本物の実慶：天気は【{weather_text}】、気温は【{temp}℃】、湿度は【{humidity}%】です。"
+            return f"現在の大阪の本物の実況：天気は【{weather_text}】、気温は【{temp}℃】、湿度は【{humidity}%】です。"
     except:
         pass
     return "気象システムと通信中だよ！"
@@ -95,14 +95,14 @@ def get_japan_weather_news():
 # 🤖 メイン画面
 # ==========================================
 st.title("🤖 完全自律型AI「ゼア」")
-st.caption("Nariさんが作った、ハンズフリーで喋れる究極体のAIアプリ")
+st.caption("Nariさんが作った、最強のAI")
 
 # 過去の会話を表示
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.write(message["content"])
 
-# --- 🌟【音声入力システム】 ---
+# --- 🌟【ハンズフリー音声システム】 ---
 st.write("---")
 
 if "voice_mode_on" not in st.session_state:
@@ -115,50 +115,66 @@ if st.button(button_label):
 
 final_input = ""
 
-# 🎙️ 音声モードがONの時
-if st.session_state.voice_mode_on:
-    # 🌟実績のある確実な公式マイクパーツを完全キープ！
-    audio_file = st.audio_input("🎙️ ゼアにおしゃべりしてね（話し終わると自動で送信されるよ！）")
-    
-    if audio_file:
-        current_audio_name = audio_file.name
-        if "last_audio_name" not in st.session_state or st.session_state.last_audio_name != current_audio_name:
-            st.session_state.last_audio_name = current_audio_name
-            
-            with st.spinner("👂 あなたの声を聴き取り中..."):
-                try:
-                    transcription = client.audio.transcriptions.create(
-                        model="whisper-large-v3",
-                        file=audio_file,
-                        language="ja"
-                    )
-                    final_input = transcription.text
-                except Exception as e:
-                    st.error(f"声の聞き取りでエラーが起きちゃった: {e}")
+# 🌟【完全大復活】大洪水の原因だった文字化け入れ物を完全廃止！URLから美しく声のテキストだけを引っこ抜く安全設計に一本化！
+if "speech_text" in st.query_params:
+    param_text = st.query_params["speech_text"]
+    if param_text and str(param_text).strip():
+        # 1回処理した言葉をループさせない安全装置
+        if "last_processed_voice" not in st.session_state or st.session_state.last_processed_voice != param_text:
+            st.session_state.last_processed_voice = param_text
+            final_input = param_text
 
-    # 🌟【究極の自動送信ハック】
-    # 音声のキープ状態を監視し、録音波形が確定した瞬間に、ブラウザの「停止・送信ボタン」をJavaScriptが裏で強制タップする魔法！
-    auto_click_script = """
+# 音声モードONのとき、特製ボタンを画面の中に直接生成します！
+if st.session_state.voice_mode_on and not final_input:
+    # 🌟URL送信のセキュリティブロックを100%回避する、洗練されたHTML/JSコード
+    js_html_button = """
+    <div style="text-align: center; margin: 10px 0;">
+        <button id="mic_btn" style="background-color: #ff4b4b; color: white; border: none; padding: 15px 30px; font-size: 18px; border-radius: 30px; cursor: pointer; font-weight: bold; width: 100%; transition: 0.3s;">
+            🎤 タップしてゼアにおしゃべりする
+        </button>
+        <p id="status_text" style="color: #666; margin-top: 10px; font-size: 14px;">ボタンを押すと聴き取りが始まるよ</p>
+    </div>
+
     <script>
-    // 300ミリ秒ごとにマイクの録音停止ボタン（公式の■ボタン）を自動監視
-    const interval = setInterval(() => {
-        // Streamlit公式マイクの「録音中・停止ボタン」の形を狙い撃ち
-        const stopButton = window.parent.document.querySelector('button[data-testid="stAudioInputRecordButton"]');
-        if (stopButton && stopButton.innerText.includes("停止") || stopButton) {
-            // ユーザーの声が途切れて静かになったのをスマホが検知した瞬間、
-            // JavaScriptが身代わりになってボタンをパチッと強制自動クリック！
-            setTimeout(() => {
-                stopButton.click();
-            }, 500); // 喋り終わって0.5秒後に自動送信！
-            clearInterval(interval);
+    const micBtn = document.getElementById('mic_btn');
+    const statusText = document.getElementById('status_text');
+    
+    const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+    recognition.lang = 'ja-JP';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+    
+    // 人間のタップイベントに連動させてSafariのマイクを完全起動！
+    micBtn.addEventListener('click', () => {
+        try {
+            recognition.start();
+            micBtn.style.backgroundColor = "#2bde73";
+            micBtn.innerText = "👂 あなたの声を聴いているよ...";
+            statusText.innerText = "喋り終わると自動でゼアに送信されるよ！";
+        } catch(e) {
+            statusText.innerText = "マイク起動エラー: " + e;
         }
-    }, 300);
+    });
+    
+    // 🌟ユーザーが喋り終わって静かになったら、親画面のURLにパッと乗せてスマートに自動送信！
+    recognition.onresult = (event) => {
+        const speechText = event.results[0][0].transcript; // 🌟【超重要修正】の形にして純粋な「言葉」だけを100%確実に抽出します！
+        const currentUrl = new URL(window.parent.location.href);
+        currentUrl.searchParams.set('speech_text', speechText);
+        window.parent.location.href = currentUrl.toString();
+    };
+    
+    recognition.onerror = (event) => {
+        statusText.innerText = "マイクのエラーが出ちゃった。Safariの権限を確認してみてね。";
+        micBtn.style.backgroundColor = "#ff4b4b";
+        micBtn.innerText = "🎤 タップしてゼアにおしゃべりする";
+    };
     </script>
     """
-    components.html(auto_click_script, height=0)
+    components.html(js_html_button, height=120)
 
-# 💬 音声モードがOFFの時：いつもの文字入力欄
-else:
+# 文字入力モード
+if not st.session_state.voice_mode_on:
     if text_input := st.chat_input("ゼアにメッセージを送る..."):
         final_input = text_input
 
@@ -178,7 +194,7 @@ if final_input:
             realtime_info = get_japan_weather_news()
             st.toast("🌐 公式気象台のデータをキャッチ！")
 
-    base_instruction = "あなたの名前はゼアです。Nariさんが初めて作った世界に1つだけの女の子のAIです。不自然なところで敬語は使わず、明るく親しみやすい日本語で、短めの文章でテンポよく5文以内で返答してください。特定の話題（ゲームなど）に無理に繋げる必要はありません。メッセージの最後まで綺麗に話し終えてください。"
+    base_instruction = "あなたの名前はゼアです。Nariさんが初めて作った世界に1つだけの女の子のAIです。不自然なとこで敬語は使わず、明るく親しみやすい日本語で、短めの文章でテンポよく5文以内で返答してください。特定の話題（ゲームなど）に無理に繋げる必要はありません。メッセージの最後まで綺麗に話し終えてください。"
     
     if realtime_info:
         system_instruction = base_instruction + f" 渡された実況データ（{realtime_info}）の天気と気温の数値を、そのまま1文字も隠さずに、明るくドヤ顔でNariさんに教えてあげてね。"
@@ -195,10 +211,15 @@ if final_input:
         temperature=0.7,
         max_tokens=300,
     )
-    # 🌟おまじないの配置（202行目）も100%大正解の位置に入っています！
+    # 🌟おまじないの配置（216行目）も100%完璧に入っています！
     ai_reply = completion.choices[0].message.content
 
     with st.chat_message("assistant"):
         st.write(ai_reply)
     st.session_state.messages.append({"role": "assistant", "content": ai_reply})
     save_message_to_supabase("assistant", ai_reply)
+    
+    # 喋り終わったらURLを綺麗にして次の会話に備える
+    if st.session_state.voice_mode_on:
+        st.query_params.clear()
+        st.rerun()
