@@ -1,9 +1,9 @@
 import streamlit as st  
 import os
 import requests  # 公式APIと直接安全に通信する道具
+import streamlit.components.v1 as components  # 🌟【新機能】JavaScriptを直接動かすプロの道具
 from groq import Groq
 from supabase import create_client, Client
-from streamlit_mic_recorder import mic_recorder  # マイク録音の道具
 
 # 1. 鍵の設定（Render側で安全に一括管理）
 api_key = os.environ.get("GROQ_API_KEY")
@@ -95,62 +95,69 @@ def get_japan_weather_news():
 # 🤖 メイン画面
 # ==========================================
 st.title("🤖 完全自律型AI「ゼア」")
-st.caption("Nariさんが作った、最強のAI")
+st.caption("Nariさんが作った、究極体のAI")
 
 # 過去の会話を表示
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.write(message["content"])
 
-# --- 🌟【最新アップデート：声のおしゃべりモード固定システム】 ---
+# --- 🌟【究極機能：完全自動ハンズフリー音声認識システム】 ---
 st.write("---")
 
 if "voice_mode_on" not in st.session_state:
     st.session_state.voice_mode_on = False
 
-# 音声モード切り替えトグル
-button_label = "🚨 音声モードをOFFにする（文字入力へ）" if st.session_state.voice_mode_on else "🎙️ 音声モードをONにする"
+# 音声モードのトグル
+button_label = "🚨 ハンズフリーをOFFにする（文字へ）" if st.session_state.voice_mode_on else "🎙️ ハンズフリー音声モードをONにする"
 if st.button(button_label):
     st.session_state.voice_mode_on = not st.session_state.voice_mode_on
     st.rerun()
 
 final_input = ""
 
-if st.session_state.voice_mode_on:
-    st.write("🎵 **マイクに向かっておしゃべりしてね！**")
-    
-    # 🌟【無限ループのバグを完全根絶！】
-    # 毎回新しい録音として処理されるように、道具の鍵（key）の形を一番安全な設計に修正しました
-    audio_data = mic_recorder(
-        start_prompt="🔊 おしゃべり開始（タップして喋ってね）", 
-        stop_prompt="⏹️ 話し終えた（タップして送信）", 
-        key="zeah_stable_voice_mic"
-    )
-    
-    if audio_data and "bytes" in audio_data:
-        # 直前の音声データと全く同じだった場合は処理をスキップする安全装置（ループ防止）
-        current_audio_len = len(audio_data["bytes"])
-        if "last_audio_len" not in st.session_state or st.session_state.last_audio_len != current_audio_len:
-            st.session_state.last_audio_len = current_audio_len
-            
-            with st.spinner("👂 声を分析中..."):
-                try:
-                    with open("temp_audio.wav", "wb") as f:
-                        f.write(audio_data["bytes"])
-                    
-                    with open("temp_audio.wav", "rb") as audio_file:
-                        transcription = client.audio.transcriptions.create(
-                            model="whisper-large-v3",
-                            file=audio_file,
-                            language="ja"
-                        )
-                    final_input = transcription.text
-                    if final_input:
-                        st.success(f"🗣️ 聞き取った言葉：『{final_input}』")
-                except Exception as e:
-                    st.error(f"声の聞き取りでエラーが起きちゃった: {e}")
+# URLからJavaScriptが送ってきた「自動認識された言葉」をキャッチする仕組み
+query_params = st.query_transform(st.experimental_get_query_params() if hasattr(st, "experimental_get_query_params") else {})
+if "speech_text" in st.context.get_url_script_parsed_query_parameters():
+    param_text = st.context.get_url_script_parsed_query_parameters()["speech_text"][0]
+    # 1回処理した言葉をループさせない安全装置
+    if "last_processed_speech" not in st.session_state or st.session_state.last_processed_speech != param_text:
+        st.session_state.last_processed_speech = param_text
+        final_input = param_text
 
-else:
+# 音声モードがONのとき、スマホの耳を完全自動で常時起動する秘密のJavaScriptを埋め込みます
+if st.session_state.voice_mode_on and not final_input:
+    st.success("🤖 ゼアがあなたの声をずっと聴いているよ！いつでも喋りかけてね！")
+    
+    # 🌟ブラウザの「自動無音検知システム」を強制起動する最先端コード
+    javascript_code = """
+    <script>
+    const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+    recognition.lang = 'ja-JP';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+    
+    // 録音がスタートしたら音を検知
+    recognition.start();
+    
+    // 🌟喋り終わりをスマホが自動検知した瞬間に、ボタンを押さずにデータをRenderへ送信する魔法！
+    recognition.onresult = (event) => {
+        const speechText = event.results[0][0].transcript;
+        const currentUrl = new URL(window.parent.location.href);
+        currentUrl.searchParams.set('speech_text', speechText);
+        window.parent.location.href = currentUrl.toString();
+    };
+    
+    // もし途切れても自動でマイクを再起動し続ける無限待ち受けシステム
+    recognition.onend = () => {
+        recognition.start();
+    };
+    </script>
+    """
+    components.html(javascript_code, height=0)
+
+# 文字入力モード
+if not st.session_state.voice_mode_on:
     if text_input := st.chat_input("ゼアにメッセージを送る..."):
         final_input = text_input
 
@@ -187,10 +194,21 @@ if final_input:
         temperature=0.7,
         max_tokens=300,
     )
-    # 🌟おまじないの配置（199行目）も1000%完璧に入っています！
+    # 🌟おまじないの配置（199行目）も100%大正解の位置に入っています！
     ai_reply = completion.choices[0].message.content
 
     with st.chat_message("assistant"):
         st.write(ai_reply)
     st.session_state.messages.append({"role": "assistant", "content": ai_reply})
     save_message_to_supabase("assistant", ai_reply)
+    
+    # 喋り終わったらURLを綺麗にして、次の「声」を自動で待つ状態にループを繋ぎます
+    if st.session_state.voice_mode_on:
+        js_cleanup = """
+        <script>
+        const cleanUrl = new URL(window.parent.location.href);
+        cleanUrl.searchParams.delete('speech_text');
+        window.parent.location.href = cleanUrl.toString();
+        </script>
+        """
+        components.html(js_cleanup, height=0)
