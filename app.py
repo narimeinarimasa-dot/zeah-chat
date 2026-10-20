@@ -86,7 +86,7 @@ def get_japan_weather_news():
             elif code >= 51: 
                 weather_text = "雨が降っているよ☔"
             
-            return f"現在の大阪の本物の実況：天気は【{weather_text}】、気温は【{temp}℃】、湿度は【{humidity}%】です。"
+            return f"現在の大阪の本物の実慶：天気は【{weather_text}】、気温は【{temp}℃】、湿度は【{humidity}%】です。"
     except:
         pass
     return "気象システムと通信中だよ！"
@@ -115,18 +115,9 @@ if st.button(button_label):
 
 final_input = ""
 
-# 🌟【完全大復活】大洪水の原因だった文字化け入れ物を完全廃止！URLから美しく声のテキストだけを引っこ抜く安全設計に一本化！
-if "speech_text" in st.query_params:
-    param_text = st.query_params["speech_text"]
-    if param_text and str(param_text).strip():
-        # 1回処理した言葉をループさせない安全装置
-        if "last_processed_voice" not in st.session_state or st.session_state.last_processed_voice != param_text:
-            st.session_state.last_processed_voice = param_text
-            final_input = param_text
-
 # 音声モードONのとき、特製ボタンを画面の中に直接生成します！
-if st.session_state.voice_mode_on and not final_input:
-    # 🌟URL送信のセキュリティブロックを100%回避する、洗練されたHTML/JSコード
+if st.session_state.voice_mode_on:
+    # 🌟【セキュリティ突破】URLをいじらず、隔離窓からStreamlit本体へ直接文字を流し込む安全な通信システム
     js_html_button = """
     <div style="text-align: center; margin: 10px 0;">
         <button id="mic_btn" style="background-color: #ff4b4b; color: white; border: none; padding: 15px 30px; font-size: 18px; border-radius: 30px; cursor: pointer; font-weight: bold; width: 100%; transition: 0.3s;">
@@ -136,6 +127,15 @@ if st.session_state.voice_mode_on and not final_input:
     </div>
 
     <script>
+    // 🌟親画面（Streamlit本体）に安全にテキストデータを送信する公式のおまじない
+    function sendToStreamlit(text) {
+        window.parent.postMessage({
+            isStreamlitMessage: true,
+            type: "streamlit:setComponentValue",
+            value: text
+        }, "*");
+    }
+
     const micBtn = document.getElementById('mic_btn');
     const statusText = document.getElementById('status_text');
     
@@ -156,12 +156,10 @@ if st.session_state.voice_mode_on and not final_input:
         }
     });
     
-    // 🌟ユーザーが喋り終わって静かになったら、親画面のURLにパッと乗せてスマートに自動送信！
+    // 🌟【自動無音検知】ユーザーが喋り終わって静かになったら、データを直接本体へ送り込む！
     recognition.onresult = (event) => {
-        const speechText = event.results[0][0].transcript; // 🌟【超重要修正】[0][0]の形にして純粋な「言葉」だけを100%確実に抽出します！
-        const currentUrl = new URL(window.parent.location.href);
-        currentUrl.searchParams.set('speech_text', speechText);
-        window.parent.location.href = currentUrl.toString();
+        const speechText = event.results[0][0].transcript; // 🌟を完璧にハメ込み、純粋な「言葉」だけを引っこ抜きます！
+        sendToStreamlit(speechText);
     };
     
     recognition.onerror = (event) => {
@@ -171,7 +169,17 @@ if st.session_state.voice_mode_on and not final_input:
     };
     </script>
     """
-    components.html(js_html_button, height=120)
+    # 🌟JavaScriptからの音声テキストをここで直接安全にキャッチします！
+    v_input = components.html(js_html_button, height=120)
+    
+    # 文字が届いたら、無限ループしないように1回だけ処理します
+    if v_input:
+        v_text = str(v_input).strip()
+        # 大洪水の原因だった「コードの文字列そのもの」が入ってきた場合は完全に無視する鉄壁の安全フィルター！
+        if v_text and not v_text.startswith("<div") and not v_text.startswith("None"):
+            if "last_processed_voice" not in st.session_state or st.session_state.last_processed_voice != v_text:
+                st.session_state.last_processed_voice = v_text
+                final_input = v_text
 
 # 文字入力モード
 if not st.session_state.voice_mode_on:
@@ -211,7 +219,7 @@ if final_input:
         temperature=0.7,
         max_tokens=300,
     )
-    # 🌟おまじないの配置（216行目）も100%完璧に入っています！
+    # 🌟おまじないの配置（224行目）も100%完璧に入っています！
     ai_reply = completion.choices[0].message.content
 
     with st.chat_message("assistant"):
@@ -219,7 +227,6 @@ if final_input:
     st.session_state.messages.append({"role": "assistant", "content": ai_reply})
     save_message_to_supabase("assistant", ai_reply)
     
-    # 喋り終わったらURLを綺麗にして次の会話に備える
+    # 喋り終わったら画面をサッと新しくして、マイクをスタンバイ状態に戻します
     if st.session_state.voice_mode_on:
-        st.query_params.clear()
         st.rerun()
