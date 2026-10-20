@@ -69,7 +69,7 @@ if "messages" not in st.session_state:
 # ==========================================
 def get_japan_weather_news():
     try:
-        url = "https://open-meteo.com"
+        url = "http://open-meteo.com"
         response = requests.get(url, timeout=5)
         if response.status_code == 200:
             data = response.json().get("current", {})
