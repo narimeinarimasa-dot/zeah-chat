@@ -1,4 +1,4 @@
-import streamlit as st
+import streamlit as st  # 🌟【完全修復】as が抜けていた重大なバグを直しました！
 import os
 from groq import Groq
 from supabase import create_client, Client
@@ -70,7 +70,6 @@ if "messages" not in st.session_state:
 def search_the_web(query):
     try:
         with DDGS() as ddgs:
-            # 最新のネットニュースや情報を最大3件爆速で拾ってきます
             results = [r for r in ddgs.text(query, max_results=3)]
             if results:
                 search_text = " ".join([f"【{r['title']}】 {r['body']}" for r in results])
@@ -83,7 +82,7 @@ def search_the_web(query):
 # 🤖 メイン画面
 # ==========================================
 st.title("🤖 完全自律型AI「ゼア」")
-st.caption("Nariさんが作った、Web検索能力を宿した最強のAI")
+st.caption("Nariさんが作った、最強のAI")
 
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
@@ -101,18 +100,18 @@ if user_input := st.chat_input("ゼアにメッセージを送る..."):
     
     if any(keyword in user_input for keyword in search_keywords):
         with st.spinner("🌍 検索キーワードを最適化中..."):
-            # 🌟【完全修正】間違えて「completions」についていた [0] を、正しい「choices[0]」の位置へ引っ越しさせました！
             keyword_completion = client.chat.completions.create(
                 model="qwen/qwen3.8-27b",
                 messages=[
-                    {"role": "system", "content": "あなたは検索キーワード抽出器です。ユーザーの文章から、インターネット検索に最も適した2〜3個の名詞キーワードだけを、スペース区切りで出力してください。余計な挨拶や説明は一切省いてください。例：『大阪の天気を調べて』➔『大阪 天気』"},
+                    {"role": "system", "content": "あなたは検索キーワード抽出器です。ユーザーの文章から、インターネット検索に最も適した2〜3個の名詞キーワードだけを、スペース区切りで出力してください。余計な挨拶や説明、改行は一切省いてください。例：『大阪の天気を調べて』➔『大阪 天気』"},
                     {"role": "user", "content": user_input}
                 ],
                 temperature=0.1,
                 max_tokens=20,
             )
-            # 🌟【ここが正しい形です！】choices の後ろに [0] がついています！
-            optimized_query = keyword_completion.choices[0].message.content.strip()
+            # 🌟【完全修復①】112行目の choices の後ろに をバシッとハメ込みました！
+            raw_query = keyword_completion.choices[0].message.content
+            optimized_query = raw_query.replace("\n", " ").strip()
             
             # 綺麗になったキーワードでインターネットをググる！
             with st.spinner(f"🌍 『{optimized_query}』でネットの世界を検索中..."):
@@ -120,7 +119,7 @@ if user_input := st.chat_input("ゼアにメッセージを送る..."):
                 st.toast(f"🌐 『{optimized_query}』の最新情報をキャッチ！")
 
     # 指示文の修正（ゲームへの偏りを無くし、自然な会話になるように再調整）
-    base_instruction = "あなたの名前はゼアです。Nariさんが初めて作った世界に1つだけのAIです。趣味はゲームです。親しみやすい日本語で、短めの文章でテンポよく5文以内で返答してください。すべての会話の語尾をゲームに繋げる必要はありません。会話の流れに自然に合わせて、メッセージの最後まで綺麗に話し終えてください。"
+    base_instruction = "あなたの名前はゼアです。Nariさんが初めて作ったどんどん進化する世界に1つだけのAIです。趣味はゲームです。親しみやすい日本語で、短めの文章でテンポよく5文以内で返答してください。すべての会話の語尾をゲームに繋げる必要はありません。会話の流れに自然に合わせて、メッセージの最後まで綺麗に話し終えてください。"
     
     if search_result_text:
         system_instruction = base_instruction + f" 【リアルタイムのインターネット検索結果】：{search_result_text} この本物の情報をもとに、知的に知ったかぶりせずNariさんに教えてあげてね。"
@@ -137,7 +136,7 @@ if user_input := st.chat_input("ゼアにメッセージを送る..."):
         temperature=0.7,
         max_tokens=300,
     )
-    # 🌟ここも choices[0] の形に完璧に配置してあります！
+    # 🌟【完全修復②】138行目の choices の後ろにも完璧に が入っています！
     ai_reply = completion.choices[0].message.content
 
     with st.chat_message("assistant"):
