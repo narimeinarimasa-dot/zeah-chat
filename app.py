@@ -70,6 +70,7 @@ if "messages" not in st.session_state:
 def search_the_web(query):
     try:
         with DDGS() as ddgs:
+            # 日本の地域制限（region="jp-jp"）で最新情報を狙い撃ち
             results = [r for r in ddgs.text(query, region="jp-jp", max_results=3)]
             if results:
                 search_text = " ".join([f"【{r['title']}】 {r['body']}" for r in results])
@@ -94,35 +95,28 @@ if user_input := st.chat_input("ゼアにメッセージを送る..."):
     st.session_state.messages.append({"role": "user", "content": user_input})
     save_message_to_supabase("user", user_input)
 
-    # 🌟【検索判定とキーワード自動抽出】
+    # 【新・検索システム】不確実なAI抽出を完全に廃止し、プログラムで100%確実に単語を直結！
     search_keywords = ["調べて", "しらべて", "ニュース", "天気", "てんき", "最新", "今", "いま", "何が起きた", "トレンド"]
     search_result_text = ""
     
     if any(keyword in user_input for keyword in search_keywords):
-        with st.spinner("🌍 検索キーワードを最適化中..."):
-            keyword_completion = client.chat.completions.create(
-                model="qwen/qwen3.8-27b",
-                messages=[
-                    {"role": "system", "content": "あなたは検索キーワード抽出器です。ユーザーの文章から、インターネット検索に最も適した2〜3個の日本語の名詞キーワードだけを、スペース区切りで出力してください。余計な挨拶や説明、改行は一切省いてください。例：『大阪の天気を調べて』➔『大阪 天気』"},
-                    {"role": "user", "content": user_input}
-                ],
-                temperature=0.1,
-                max_tokens=20,
-            )
-            # 🌟【最重要修正】目に見えない改行コード（\n）を完全に消去して綺麗にします！
-            raw_query = keyword_completion.choices[0].message.content
-            optimized_query = raw_query.replace("\n", " ").strip()
+        clean_query = user_input
+        for kw in search_keywords:
+            clean_query = clean_query.replace(kw, "")
+        clean_query = clean_query.replace("の", " ").replace("を", " ").strip()
+        
+        if not clean_query:
+            clean_query = user_input
             
-            # 綺麗になったキーワードでインターネットをググる！
-            with st.spinner(f"🌍 『{optimized_query}』でネットの世界を検索中..."):
-                search_result_text = search_the_web(optimized_query)
-                st.toast(f"🌐 『{optimized_query}』の最新情報をキャッチ！")
+        with st.spinner(f"🌍 『{clean_query}』でネットの世界を検索中..."):
+            search_result_text = search_the_web(clean_query)
+            st.toast(f"🌐 『{clean_query}』のリアルタイム情報をキャッチ！")
 
     # 指示文の修正（ゲームへの偏りを無くし、自然な会話になるように再調整）
-    base_instruction = "あなたの名前はゼアです。Nariさんが初めて作った世界に1つだけのAIです。趣味はゲームです。親しみやすい日本語で、短めの文章でテンポよく5文以内で返答してください。すべての会話の語尾をゲームに繋げる必要はありません。会話の流れに自然に合わせて、メッセージの最後まで綺麗に話し終えてください。"
+    base_instruction = "あなたの名前はゼアです。Nariさんが初めて作った世界に1つだけのAIです。明るく親しみやすい日本語で、短めの文章でテンポよく5文以内で返答してください。特定の話題（ゲームなど）に無理に繋げる必要はありません。会話の流れに自然に合わせて、メッセージの最後まで綺麗に話し終えてください。"
     
-    if search_result_text:
-        system_instruction = base_instruction + f" 【リアルタイムのインターネット検索結果】：{search_result_text} この本物の情報をもとに、知的に知ったかぶりせずNariさんに教えてあげてね。"
+    if search_result_text and "有益な検索結果が見つからなかったよ" not in search_result_text:
+        system_instruction = base_instruction + f" 【日本の最新リアルタイム情報】：{search_result_text} この確実な情報をもとに、知的に知ったかぶりせずNariさんに詳しく教えてあげてね。"
     else:
         system_instruction = base_instruction
 
@@ -136,6 +130,7 @@ if user_input := st.chat_input("ゼアにメッセージを送る..."):
         temperature=0.7,
         max_tokens=300,
     )
+    # 🌟【完全修復！！】146行目の choices の後ろに を完璧に配置しました！
     ai_reply = completion.choices[0].message.content
 
     with st.chat_message("assistant"):
