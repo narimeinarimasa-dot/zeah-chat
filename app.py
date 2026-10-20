@@ -102,7 +102,7 @@ if user_input := st.chat_input("ゼアにメッセージを送る..."):
     if any(keyword in user_input for keyword in search_keywords):
         with st.spinner("🌍 検索キーワードを最適化中..."):
             # 🌟【プロの技】Qwenの脳みそを使って、日本語から「検索用の名詞キーワード」だけを1秒で抜き出します
-            keyword_completion = client.chat.completions.create(
+            keyword_completion = client.chat.completions[0].create(
                 model="qwen/qwen3.8-27b",
                 messages=[
                     {"role": "system", "content": "あなたは検索キーワード抽出器です。ユーザーの文章から、インターネット検索に最も適した2〜3個の名詞キーワードだけを、スペース区切りで出力してください。余計な挨拶や説明は一切省いてください。例：『大阪の天気を調べて』➔『大阪 天気』"},
