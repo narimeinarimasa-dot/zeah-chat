@@ -1,7 +1,7 @@
 import streamlit as st  
 import os
 import requests  # 公式APIと直接安全に通信する道具
-import streamlit.components.v1 as components  # 🌟【新機能】JavaScriptを直接動かすプロの道具
+import streamlit.components.v1 as components  # JavaScriptを直接動かす道具
 from groq import Groq
 from supabase import create_client, Client
 
@@ -95,7 +95,7 @@ def get_japan_weather_news():
 # 🤖 メイン画面
 # ==========================================
 st.title("🤖 完全自律型AI「ゼア」")
-st.caption("Nariさんが作った、究極体のAI")
+st.caption("Nariさんが作った、ハンズフリーで喋れる究極体のAIアプリ")
 
 # 過去の会話を表示
 for message in st.session_state.messages:
@@ -116,10 +116,9 @@ if st.button(button_label):
 
 final_input = ""
 
-# URLからJavaScriptが送ってきた「自動認識された言葉」をキャッチする仕組み
-query_params = st.query_transform(st.experimental_get_query_params() if hasattr(st, "experimental_get_query_params") else {})
-if "speech_text" in st.context.get_url_script_parsed_query_parameters():
-    param_text = st.context.get_url_script_parsed_query_parameters()["speech_text"][0]
+# 🌟【完全修復】エラーの原因だった部分を最新公式ルール（st.query_params）にスッキリ書き直しました！
+if "speech_text" in st.query_params:
+    param_text = st.query_params["speech_text"]
     # 1回処理した言葉をループさせない安全装置
     if "last_processed_speech" not in st.session_state or st.session_state.last_processed_speech != param_text:
         st.session_state.last_processed_speech = param_text
@@ -129,7 +128,7 @@ if "speech_text" in st.context.get_url_script_parsed_query_parameters():
 if st.session_state.voice_mode_on and not final_input:
     st.success("🤖 ゼアがあなたの声をずっと聴いているよ！いつでも喋りかけてね！")
     
-    # 🌟ブラウザの「自動無音検知システム」を強制起動する最先端コード
+    # ブラウザの「自動無音検知システム」を強制起動する最先端コード
     javascript_code = """
     <script>
     const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
@@ -137,10 +136,9 @@ if st.session_state.voice_mode_on and not final_input:
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;
     
-    // 録音がスタートしたら音を検知
     recognition.start();
     
-    // 🌟喋り終わりをスマホが自動検知した瞬間に、ボタンを押さずにデータをRenderへ送信する魔法！
+    // ユーザーが喋り終わって静かになったら、自動でデータをRenderへ送信する魔法！
     recognition.onresult = (event) => {
         const speechText = event.results[0][0].transcript;
         const currentUrl = new URL(window.parent.location.href);
@@ -194,7 +192,7 @@ if final_input:
         temperature=0.7,
         max_tokens=300,
     )
-    # 🌟おまじないの配置（199行目）も100%大正解の位置に入っています！
+    # 🌟おまじないの配置（196行目）も100%大正解の位置に入っています！
     ai_reply = completion.choices[0].message.content
 
     with st.chat_message("assistant"):
@@ -204,11 +202,6 @@ if final_input:
     
     # 喋り終わったらURLを綺麗にして、次の「声」を自動で待つ状態にループを繋ぎます
     if st.session_state.voice_mode_on:
-        js_cleanup = """
-        <script>
-        const cleanUrl = new URL(window.parent.location.href);
-        cleanUrl.searchParams.delete('speech_text');
-        window.parent.location.href = cleanUrl.toString();
-        </script>
-        """
-        components.html(js_cleanup, height=0)
+        # 🌟【最重要お掃除】URLのspeech_textを最新の st.query_params で消去して綺麗にします
+        st.query_params.clear()
+        st.rerun()
