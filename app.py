@@ -70,7 +70,6 @@ if "messages" not in st.session_state:
 def search_the_web(query):
     try:
         with DDGS() as ddgs:
-            # 🌟【最重要修正】 region="jp-jp" を追加して、日本のリアルタイム情報を確実に狙い撃ちします！
             results = [r for r in ddgs.text(query, region="jp-jp", max_results=3)]
             if results:
                 search_text = " ".join([f"【{r['title']}】 {r['body']}" for r in results])
@@ -95,7 +94,7 @@ if user_input := st.chat_input("ゼアにメッセージを送る..."):
     st.session_state.messages.append({"role": "user", "content": user_input})
     save_message_to_supabase("user", user_input)
 
-    # 検索判定とキーワード自動抽出
+    # 🌟【検索判定とキーワード自動抽出】
     search_keywords = ["調べて", "しらべて", "ニュース", "天気", "てんき", "最新", "今", "いま", "何が起きた", "トレンド"]
     search_result_text = ""
     
@@ -110,6 +109,7 @@ if user_input := st.chat_input("ゼアにメッセージを送る..."):
                 temperature=0.1,
                 max_tokens=20,
             )
+            # 🌟【最重要修正】目に見えない改行コード（\n）を完全に消去して綺麗にします！
             raw_query = keyword_completion.choices[0].message.content
             optimized_query = raw_query.replace("\n", " ").strip()
             
@@ -118,11 +118,11 @@ if user_input := st.chat_input("ゼアにメッセージを送る..."):
                 search_result_text = search_the_web(optimized_query)
                 st.toast(f"🌐 『{optimized_query}』の最新情報をキャッチ！")
 
-    # 🌟【指示文の修正】お喋りの偏りを無くし、人間らしく自然な会話になるようにブラッシュアップ！
-    base_instruction = "あなたの名前はゼアです。Nariさんが初めて作ったどんどん進化する世界に1つだけの親しいAIです。明るく親しみやすい日本語で、短めの文章でテンポよく5文以内で返答してください。特定の話題（ゲームなど）に無理に繋げる必要はありません。会話の流れに自然に合わせて、メッセージの最後まで綺麗に話し終えてください。"
+    # 指示文の修正（ゲームへの偏りを無くし、自然な会話になるように再調整）
+    base_instruction = "あなたの名前はゼアです。Nariさんが初めて作った世界に1つだけのAIです。趣味はゲームです。親しみやすい日本語で、短めの文章でテンポよく5文以内で返答してください。すべての会話の語尾をゲームに繋げる必要はありません。会話の流れに自然に合わせて、メッセージの最後まで綺麗に話し終えてください。"
     
     if search_result_text:
-        system_instruction = base_instruction + f" 【日本の最新リアルタイム情報】：{search_result_text} この確実な情報をもとに、知的に知ったかぶりせずNariさんに詳しく教えてあげてね。"
+        system_instruction = base_instruction + f" 【リアルタイムのインターネット検索結果】：{search_result_text} この本物の情報をもとに、知的に知ったかぶりせずNariさんに教えてあげてね。"
     else:
         system_instruction = base_instruction
 
