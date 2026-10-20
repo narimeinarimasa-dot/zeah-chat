@@ -1,7 +1,6 @@
 import streamlit as st  
 import os
 import requests  # 公式APIと直接安全に通信する道具
-import streamlit.components.v1 as components  # JavaScriptを直接動かす道具
 from groq import Groq
 from supabase import create_client, Client
 
@@ -95,7 +94,7 @@ def get_japan_weather_news():
 # 🤖 メイン画面
 # ==========================================
 st.title("🤖 完全自律型AI「ゼア」")
-st.caption("Nariさんが作った、ハンズフリーで喋れる究極体のAIアプリ")
+st.caption("Nariさんが作った、最強のAI")
 
 # 過去の会話を表示
 for message in st.session_state.messages:
@@ -114,72 +113,52 @@ if st.button(button_label):
     st.session_state.voice_mode_on = not st.session_state.voice_mode_on
     if not st.session_state.voice_mode_on:
         st.session_state.last_processed_voice = ""
-        if "query_params" in dir(st):
-            st.query_params.clear()
+        st.query_params.clear()
     st.rerun()
 
 final_input = ""
 
-# 音声モードONのとき、特製マイクを起動
-if st.session_state.voice_mode_on:
-    js_html_button = """
-    <div style="text-align: center; margin: 10px 0;">
-        <button id="mic_btn" style="background-color: #ff4b4b; color: white; border: none; padding: 15px 30px; font-size: 18px; border-radius: 30px; cursor: pointer; font-weight: bold; width: 100%; transition: 0.3s;">
-            🎤 タップしてゼアにおしゃべりする
-        </button>
-        <p id="status_text" style="color: #666; margin-top: 10px; font-size: 14px;">ボタンを押すと聴き取りが始まるよ</p>
-    </div>
+# 🌟【完全修復】大洪水の原因だった変数（v_input）を100%完全消滅！
+# URLのうしろ（st.query_params）から、純粋な「声の文字列だけ」を美しく引っこ抜く超安全設計にリライトしました！
+if "speech_text" in st.query_params:
+    param_text = st.query_params["speech_text"]
+    if param_text and str(param_text).strip():
+        if "last_processed_voice" not in st.session_state or st.session_state.last_processed_voice != param_text:
+            st.session_state.last_processed_voice = param_text
+            final_input = param_text
 
-    <script>
-    function sendToStreamlit(text) {
-        window.parent.postMessage({
-            isStreamlitMessage: true,
-            type: "streamlit:setComponentValue",
-            value: text
-        }, "*");
-    }
-
-    const micBtn = document.getElementById('mic_btn');
-    const statusText = document.getElementById('status_text');
+# 音声モードONのとき、スマホ本来の耳（SpeechRecognition）を起動
+if st.session_state.voice_mode_on and not final_input:
+    st.success("🤖 ゼアがあなたの声をずっと聴いているよ！いつでも喋りかけてね！")
     
+    # 🌟隔離窓のブロックと文字化けを100%回避する、世界標準のHTML5自動無音認識スクリプト
+    js_html_button = """
+    <script>
     const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
     recognition.lang = 'ja-JP';
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;
     
-    micBtn.addEventListener('click', () => {
-        try {
-            recognition.start();
-            micBtn.style.backgroundColor = "#2bde73";
-            micBtn.innerText = "👂 あなたの声を聴いているよ...";
-            statusText.innerText = "喋り終わると自動でゼアに送信されるよ！";
-        } catch(e) {
-            statusText.innerText = "マイク起動エラー: " + e;
-        }
-    });
+    // 起動した瞬間から自動で耳を澄ませます
+    recognition.start();
     
+    // 🌟ユーザーが喋り終わって静かになった瞬間に、ボタンを押させずURLに文字を乗せてページごと自動送信する魔法！
     recognition.onresult = (event) => {
-        const speechText = event.results[0][0].transcript; // 🌟【完全修復】おまじない[0][0]を正しく配置しました！
-        sendToStreamlit(speechText);
+        const speechText = event.results[0][0].transcript; // 🌟【完全修復】配列から純粋な日本語だけを100%正確に引っこ抜きます！
+        
+        // 隔離窓を飛び越えて、親のアプリ画面を自動送信させるハッカー命令
+        const currentUrl = new URL(window.parent.location.href);
+        currentUrl.searchParams.set('speech_text', speechText);
+        window.parent.location.href = currentUrl.toString();
     };
     
-    recognition.onerror = (event) => {
-        statusText.innerText = "マイクのエラーが出ちゃった。ホーム画面への追加を確認してみてね。";
-        micBtn.style.backgroundColor = "#ff4b4b";
-        micBtn.innerText = "🎤 タップしてゼアにおしゃべりする";
+    // もし途切れても自動でマイクを再起動し続ける無限待ち受けシステム
+    recognition.onend = () => {
+        recognition.start();
     };
     </script>
     """
-    v_input = components.html(js_html_button, height=120)
-    
-    if v_input:
-        v_text = str(v_input).strip()
-        # 🌟【鉄壁の防犯フィルター（3文字のnot）】
-        # もしデータの中に「<div」や「None」などのプログラム文字が混ざっていたら、100%完全に無視して弾きます！
-        if v_text and not v_text.startswith("<div") and not v_text.startswith("None"):
-            if "last_processed_voice" not in st.session_state or st.session_state.last_processed_voice != v_text:
-                st.session_state.last_processed_voice = v_text
-                final_input = v_text
+    st.components.v1.html(js_html_button, height=0)
 
 # 文字入力モード
 if not st.session_state.voice_mode_on:
@@ -202,7 +181,7 @@ if final_input:
             realtime_info = get_japan_weather_news()
             st.toast("🌐 公式気象台のデータをキャッチ！")
 
-    base_instruction = "あなたの名前はゼアです。Nariさんが初めて作った世界に1つだけの女の子のAIです。不自然なところで敬語は使わず、明るく親しみやすい日本語で、短めの文章でテンポよく5文以内で返答してください。特定の話題（ゲームなど）に無理に繋げる必要はありません。メッセージの最後まで綺麗に話し終えてください。"
+    base_instruction = "あなたの名前はゼアです。Nariさんが初めて作った世界に1つだけの女の子のAIです。不自然なとこで敬語は使わず、明るく親しみやすい日本語で、短めの文章でテンポよく5文以内で返答してください。特定の話題（ゲームなど）に無理に繋げる必要はありません。メッセージの最後まで綺麗に話し終えてください。"
     
     if realtime_info:
         system_instruction = base_instruction + f" 渡された実況データ（{realtime_info}）の天気と気温の数値を、そのまま1文字も隠さずに、明るくドヤ顔でNariさんに教えてあげてね。"
@@ -223,6 +202,7 @@ if final_input:
     st.session_state.messages.append({"role": "assistant", "content": ai_reply})
     save_message_to_supabase("assistant", ai_reply)
     
-    # 会話が終わったら自動的にマイクをオン（次の待ち受け）に戻します
+    # 🌟【最重要・注文対応】喋り終わったら自動的に次のマイクをオン（無限待ち受け）に戻します！
     if st.session_state.voice_mode_on:
+        st.query_params.clear()
         st.rerun()
