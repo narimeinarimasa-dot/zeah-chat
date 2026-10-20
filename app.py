@@ -1,4 +1,4 @@
-import streamlit as st  # 🌟【完全修復①】as の文字抜けを完璧に直しました！
+import streamlit as st  
 import os
 import requests  # 公式APIと直接安全に通信する道具
 from groq import Groq
@@ -79,13 +79,13 @@ def get_japan_weather_news():
             humidity = data.get("relative_humidity_2m", "不明")
             code = data.get("weather_code", 0)
             
-            # 🌟【完全修復②】in の後ろの数字リストを完璧に復元しました！
+            # 🌟【エラーの完全解決】バグの原因だった『in』を完全に排除し、絶対に失敗しない不等式に書き換えました！
             weather_text = "くもりか雨"
-            if code in: 
+            if code <= 3: 
                 weather_text = "快晴・晴れ☀"
-            elif code in: 
+            elif code <= 48: 
                 weather_text = "晴れのち曇りか、くもり☁"
-            elif code in: 
+            elif code >= 51: 
                 weather_text = "雨が降っているよ☔"
             
             return f"【現在の大阪のリアルタイム本物実況】：天気は「{weather_text}」、気温は「{temp}℃」、湿度は「{humidity}%」です。"
@@ -118,7 +118,7 @@ if user_input := st.chat_input("ゼアにメッセージを送る..."):
             realtime_info = get_japan_weather_news()
             st.toast("🌐 公式気象台のリアルタイムデータをキャッチしたよ！")
 
-    # 裏指示文の組み立て（お喋りの偏りも修正済み）
+    # 裏指示文の組み立て（お喋りの偏りもバッチリ修正済み！）
     base_instruction = "あなたの名前はゼアです。Nariさんが初めて作った世界に1つだけのAIです。明るく親しみやすい日本語で、短めの文章でテンポよく5文以内で返答してください。すべての会話の語尾を無理にゲームに繋げる必要はありません。会話の流れに自然に合わせて、メッセージの最後まで綺麗に話し終えてください。"
     
     if realtime_info:
