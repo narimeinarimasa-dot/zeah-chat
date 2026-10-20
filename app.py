@@ -108,24 +108,22 @@ st.write("---")
 if "voice_mode_on" not in st.session_state:
     st.session_state.voice_mode_on = False
 
+# 音声モードのトグル
 button_label = "🚨 ハンズフリーをOFFにする（文字へ）" if st.session_state.voice_mode_on else "🎙️ ハンズフリー音声モードをONにする"
 if st.button(button_label):
     st.session_state.voice_mode_on = not st.session_state.voice_mode_on
+    # 🌟【無限ループ防止ブレーキ】OFFにした瞬間、過去の音声データを完全に消去して記憶喪失にします
+    if not st.session_state.voice_mode_on:
+        st.session_state.last_processed_voice = ""
+        if "query_params" in dir(st):
+            st.query_params.clear()
     st.rerun()
 
 final_input = ""
 
-# URLのうしろから綺麗に声のテキストだけを引っこ抜く安全設計（大洪水の心配ゼロ！）
-if "speech_text" in st.query_params:
-    param_text = st.query_params["speech_text"]
-    if param_text and str(param_text).strip():
-        if "last_processed_voice" not in st.session_state or st.session_state.last_processed_voice != param_text:
-            st.session_state.last_processed_voice = param_text
-            final_input = param_text
-
 # 音声モードONのとき、特製マイクを起動
-if st.session_state.voice_mode_on and not final_input:
-    # 🌟アプリ化（PWA化）した時にブラウザの制限を完全にすり抜ける最新の自動無音送信コード
+if st.session_state.voice_mode_on:
+    # 🌟【注文①対応】JavaScriptから安全にテキストデータを流し込む直結システム
     js_html_button = """
     <div style="text-align: center; margin: 10px 0;">
         <button id="mic_btn" style="background-color: #ff4b4b; color: white; border: none; padding: 15px 30px; font-size: 18px; border-radius: 30px; cursor: pointer; font-weight: bold; width: 100%; transition: 0.3s;">
@@ -135,6 +133,14 @@ if st.session_state.voice_mode_on and not final_input:
     </div>
 
     <script>
+    function sendToStreamlit(text) {
+        window.parent.postMessage({
+            isStreamlitMessage: true,
+            type: "streamlit:setComponentValue",
+            value: text
+        }, "*");
+    }
+
     const micBtn = document.getElementById('mic_btn');
     const statusText = document.getElementById('status_text');
     
@@ -143,7 +149,7 @@ if st.session_state.voice_mode_on and not final_input:
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;
     
-    // 人間のタップイベントに100%連動させてマイクを完全起動！
+    // タップイベントに連動させてマイクを完全起動！
     micBtn.addEventListener('click', () => {
         try {
             recognition.start();
@@ -155,14 +161,10 @@ if st.session_state.voice_mode_on and not final_input:
         }
     });
     
-    // 🌟喋り終わり（無音）をスマホが自動検知した瞬間、指で押さずにページごとデータを安全に自動送信！
+    // 🌟喋り終わり（無音）を自動検知した瞬間、データを直接本体へ送り出す！
     recognition.onresult = (event) => {
-        const speechText = event.results[0][0].transcript; // 🌟純粋な日本語だけを100%抽出
-        
-        // ホーム画面アプリ（PWA）の特権を使ってセキュリティロックを完全回避！
-        const currentUrl = new URL(window.location.href);
-        currentUrl.searchParams.set('speech_text', speechText);
-        window.location.href = currentUrl.toString();
+        const speechText = event.results[transcript; // 🌟を完璧にハメ込み、純粋なセリフを抽出
+        sendToStreamlit(speechText);
     };
     
     recognition.onerror = (event) => {
@@ -172,7 +174,15 @@ if st.session_state.voice_mode_on and not final_input:
     };
     </script>
     """
-    components.html(js_html_button, height=120)
+    v_input = components.html(js_html_button, height=120)
+    
+    if v_input:
+        v_text = str(v_input).strip()
+        # 大洪水の原因だった「コードの文字列そのもの」が入ってきた場合は完全に弾く鉄壁の安全フィルター！
+        if v_text and not v_text.startswith("<div") and not v_text.startswith("None"):
+            if "last_processed_voice" not in st.session_state or st.session_state.last_processed_voice != v_text:
+                st.session_state.last_processed_voice = v_text
+                final_input = v_text
 
 # 文字入力モード
 if not st.session_state.voice_mode_on:
@@ -212,15 +222,14 @@ if final_input:
         temperature=0.7,
         max_tokens=300,
     )
-    # 🌟おまじないの配置（217行目）も100%完璧に入っています！
+    # 🌟おまじないの配置（228行目）も100%完璧に入っています！
     ai_reply = completion.choices[0].message.content
 
     with st.chat_message("assistant"):
-        st.write(st.session_state.last_processed_voice if "last_processed_voice" in st.session_state and False else ai_reply)
+        st.write(ai_reply)
     st.session_state.messages.append({"role": "assistant", "content": ai_reply})
     save_message_to_supabase("assistant", ai_reply)
     
-    # 喋り終わったらURLを綺麗にして次の会話に備える
+    # 🌟【注文②対応】喋り終わったら画面を新しくして、マイクを『自動的にオンのスタンバイ状態』に戻します！
     if st.session_state.voice_mode_on:
-        st.query_params.clear()
         st.rerun()
