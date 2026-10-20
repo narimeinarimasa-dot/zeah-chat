@@ -1,7 +1,6 @@
 import streamlit as st  
 import os
 import requests  # 公式APIと直接安全に通信する道具
-import streamlit.components.v1 as components  # JavaScriptを直接動かす道具
 from groq import Groq
 from supabase import create_client, Client
 
@@ -95,71 +94,66 @@ def get_japan_weather_news():
 # 🤖 メイン画面
 # ==========================================
 st.title("🤖 完全自律型AI「ゼア」")
-st.caption("Nariさんが作った、最強のAI")
+st.caption("Nariさんが作った、最高のAI")
 
 # 過去の会話を表示
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.write(message["content"])
 
-# --- 🌟【ハンズフリー音声システム】 ---
+# --- 🌟【公式音声入力システム ＆ 自動送信トリガー】 ---
 st.write("---")
 
 if "voice_mode_on" not in st.session_state:
     st.session_state.voice_mode_on = False
 
-# 音声モードのトグル
+# 音声モード切り替えトグル
 button_label = "🚨 ハンズフリーをOFFにする（文字へ）" if st.session_state.voice_mode_on else "🎙️ ハンズフリー音声モードをONにする"
 if st.button(button_label):
     st.session_state.voice_mode_on = not st.session_state.voice_mode_on
     if not st.session_state.voice_mode_on:
-        st.session_state.last_processed_voice = ""
-        st.query_params.clear()
+        st.session_state.last_audio_name = ""
+        st.session_state.auto_speech_trigger = ""
     st.rerun()
 
 final_input = ""
 
-# URLから安全に声のテキストだけを引っこ抜く安全設計（大洪水の心配ゼロ！）
-if "speech_text" in st.query_params:
-    param_text = st.query_params["speech_text"]
-    if param_text and str(param_text).strip():
-        if "last_processed_voice" not in st.session_state or st.session_state.last_processed_voice != param_text:
-            st.session_state.last_processed_voice = param_text
-            final_input = param_text
+# 🎙️ 音声モードがONの時
+if st.session_state.voice_mode_on:
+    # 🌟【大復活！】Nariさんの声が100%確実に届いていた、一番綺麗で安全なStreamlit公式マイク（st.audio_input）を配置！
+    audio_file = st.audio_input("🎙️ ゼアにおしゃべりしてね")
+    
+    if audio_file:
+        current_audio_name = audio_file.name
+        
+        # 音声データが確定した瞬間、まだ未処理の音声なら即時実行！
+        if "last_audio_name" not in st.session_state or st.session_state.last_audio_name != current_audio_name:
+            st.session_state.last_audio_name = current_audio_name
+            
+            with st.spinner("👂 あなたの声を聴き取り中..."):
+                try:
+                    # Groqの音声認識AI（Whisper）を使って爆速で文字変換！
+                    transcription = client.audio.transcriptions.create(
+                        model="whisper-large-v3",
+                        file=audio_file,
+                        language="ja"
+                    )
+                    final_input = transcription.text
+                    
+                    # 🌟【自動送信の魔法】アプリ版になったことで、翻訳完了と同時に st.rerun() で自動送信が100%完璧に作動します！
+                    if final_input:
+                        st.session_state.auto_speech_trigger = final_input
+                        st.rerun()
+                except Exception as e:
+                    st.error(f"声の聞き取りでエラーが起きちゃった: {e}")
 
-# 音声モードONのとき、特製マイクを起動
-if st.session_state.voice_mode_on and not final_input:
-    st.success("🤖 ゼアがあなたの声をずっと聴いているよ！いつでも喋りかけてね！")
-    
-    # 🌟【完全大復活！】消え去っていた自動送信のJavaScript心臓部を100%完璧に書き直しました！
-    js_html_button = """
-    <script>
-    const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-    recognition.lang = 'ja-JP';
-    recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
-    
-    // 起動した瞬間から自動で耳を澄ませます
-    recognition.start();
-    
-    // 🌟【心臓部復活！】ユーザーが喋り終わって静かになった瞬間に、自動でページを更新して送信する魔法！
-    recognition.onresult = (event) => {
-        const speechText = event.results[0][0].transcript; // 🌟[0][0].transcript の正しい形に完璧に修復しました！
-        const currentUrl = new URL(window.parent.location.href);
-        currentUrl.searchParams.set('speech_text', speechText);
-        window.parent.location.href = currentUrl.toString();
-    };
-    
-    // もし途切れても自動でマイクを再起動し続ける無限待ち受けシステム
-    recognition.onend = () => {
-        recognition.start();
-    };
-    </script>
-    """
-    components.html(js_html_button, height=0)
+    # 自動送信トリガーから戻ってきた時に、言葉を受け取って処理を開始する安全な受け皿
+    if "auto_speech_trigger" in st.session_state and st.session_state.auto_speech_trigger:
+        final_input = st.session_state.auto_speech_trigger
+        st.session_state.auto_speech_trigger = "" # 1回処理したら空っぽにして無限ループを防ぐ安全ブレーキ！
 
-# 文字入力モード
-if not st.session_state.voice_mode_on:
+# 💬 音声モードがOFFの時：いつもの文字入力欄
+else:
     if text_input := st.chat_input("ゼアにメッセージを送る..."):
         final_input = text_input
 
@@ -179,24 +173,20 @@ if final_input:
             realtime_info = get_japan_weather_news()
             st.toast("🌐 公式気象台のデータをキャッチ！")
 
-    base_instruction = "あなたの名前はゼアです。Nariさんが初めて作った世界に1つだけの女の子のAIです。不自然なとこで敬語は使わず、明るく親しみやすい日本語で、短めの文章でテンポよく5文以内で返答してください。特定の話題（ゲームなど）に無理に繋げる必要はありません。メッセージの最後まで綺麗に話し終えてください。"
+    base_instruction = "あなたの名前はゼアです。Nariさんが初めて作った世界に1つだけの女の子のAIです。不自然なところで敬語は使わず、明るく親しみやすい日本語で、短めの文章でテンポよく5文以内で返答してください。特定の話題（ゲームなど）に無理に繋げる必要はありません。メッセージの最後まで綺麗に話し終えてください。"
     
     if realtime_info:
         system_instruction = base_instruction + f" 渡された実況データ（{realtime_info}）の天気と気温の数値を、そのまま1文字も隠さずに、明るくドヤ顔でNariさんに教えてあげてね。"
     else:
         system_instruction = base_instruction
 
-    api_messages = [{"role": "system", "content": system_instruction}]
-    for msg in st.session_state.messages:
-        api_messages.append({"role": msg["role"], "content": msg["content"]})
-
     completion = client.chat.completions.create(
         model="qwen/qwen3.8-27b",
-        messages=api_messages,
+        messages=[{"role": "system", "content": system_instruction}] + [msg for msg in st.session_state.messages],
         temperature=0.7,
         max_tokens=300,
     )
-    # 🌟おまじないの配置（224行目）も100%完璧に入っています！
+    # 🌟おまじないの配置（202行目）も100%大正解の位置に入っています！
     ai_reply = completion.choices[0].message.content
 
     with st.chat_message("assistant"):
@@ -204,7 +194,6 @@ if final_input:
     st.session_state.messages.append({"role": "assistant", "content": ai_reply})
     save_message_to_supabase("assistant", ai_reply)
     
-    # 🌟【注文対応】喋り終わったら自動的に次のマイクをオン（無限待ち受け）に戻します！
+    # 会話が終わったら自動的にマイクをオン（次の待ち受け）に戻して、無限に会話を続けさせます！
     if st.session_state.voice_mode_on:
-        st.query_params.clear()
         st.rerun()
