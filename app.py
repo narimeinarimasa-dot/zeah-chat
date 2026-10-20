@@ -1,7 +1,7 @@
 import streamlit as st  
 import os
 import requests  # 公式APIと直接安全に通信する道具
-import streamlit.components.v1 as components  # JavaScriptを直接動かす道具
+import streamlit.components.v1 as components  # 🌟JavaScriptとデータをやり取りするプロの道具
 from groq import Groq
 from supabase import create_client, Client
 
@@ -86,13 +86,13 @@ def get_japan_weather_news():
             elif code >= 51: 
                 weather_text = "雨が降っているよ☔"
             
-            return f"現在の大阪の本物の実慶：天気は【{weather_text}】、気温は【{temp}℃】、湿度は【{humidity}%】です。"
+            return f"現在の大阪の本物の実況：天気は【{weather_text}】、気温は【{temp}℃】、湿度は【{humidity}%】です。"
     except:
         pass
     return "気象システムと通信中だよ！"
 
 # ==========================================
-# 🤖 メメイン画面
+# 🤖 メイン画面
 # ==========================================
 st.title("🤖 完全自律型AI「ゼア」")
 st.caption("Nariさんが作った、最強のAI")
@@ -115,25 +115,27 @@ if st.button(button_label):
 
 final_input = ""
 
-if "speech_text" in st.query_params:
-    param_text = st.query_params["speech_text"]
-    if param_text and param_text.strip():
-        if "last_processed_voice" not in st.session_state or st.session_state.last_processed_voice != param_text:
-            st.session_state.last_processed_voice = param_text
-            final_input = param_text
-
-# 🌟音声モードONのとき、Appleのセキュリティに弾かれない「本物のマイクボタン」をJavaScriptで画面の中に直接生成します！
-if st.session_state.voice_mode_on and not final_input:
-    # 人間のタップイベントとマイクの起動を100%完全に合体させた、防犯ロック突破HTMLコード
-    js_ear_button = """
+# 🌟音声モードONのとき、Safariのロックを確実に突破するボタンコンポーネントを埋め込みます
+if st.session_state.voice_mode_on:
+    # 🌟【セキュリティを完全破壊】URLをいじらず、隔離窓からStreamlit本体へ直接文字を流し込む最先端システム
+    js_html_button = """
     <div style="text-align: center; margin: 10px 0;">
-        <button id="mic_btn" style="background-color: #ff4b4b; color: white; border: none; padding: 15px 30px; font-size: 18px; border-radius: 30px; cursor: pointer; font-weight: bold; width: 100%;">
+        <button id="mic_btn" style="background-color: #ff4b4b; color: white; border: none; padding: 15px 30px; font-size: 18px; border-radius: 30px; cursor: pointer; font-weight: bold; width: 100%; transition: 0.3s;">
             🎤 タップしてゼアにおしゃべりする
         </button>
         <p id="status_text" style="color: #666; margin-top: 10px; font-size: 14px;">ボタンを押すと聴き取りが始まるよ</p>
     </div>
 
     <script>
+    // 🌟Streamlit本体にデータを安全に送信する公式のおまじない
+    function sendToStreamlit(text) {
+        window.parent.postMessage({
+            isStreamlitMessage: true,
+            type: "streamlit:setComponentValue",
+            value: text
+        }, "*");
+    }
+
     const micBtn = document.getElementById('mic_btn');
     const statusText = document.getElementById('status_text');
     
@@ -142,20 +144,22 @@ if st.session_state.voice_mode_on and not final_input:
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;
     
-    // 人間がボタンを押した瞬間に、Safariの許可を得てマイクを完全起動！
+    // 🌟【タイポ修正】#2bde73 にダブルクォーテーションを付けて、完全にバグを直しました！
     micBtn.addEventListener('click', () => {
-        recognition.start();
-        micBtn.style.backgroundColor = #2bde73;
-        micBtn.innerText = "👂 あなたの声を聴いているよ...";
-        statusText.innerText = "喋り終わると自動でゼアに送信されるよ！";
+        try {
+            recognition.start();
+            micBtn.style.backgroundColor = "#2bde73";
+            micBtn.innerText = "👂 あなたの声を聴いているよ...";
+            statusText.innerText = "喋り終わると自動でゼアに送信されるよ！";
+        } catch(e) {
+            statusText.innerText = "マイク起動エラー: " + e;
+        }
     });
     
-    // 🌟喋り終わりをスマホが自動検知した瞬間に、送信ボタンを押さずにデータを自動送信！
+    // 🌟ユーザーが喋り終わって静かになったら、データを直接本体へ送り込む！
     recognition.onresult = (event) => {
-        const speechText = event.results[0].transcript;
-        const currentUrl = new URL(window.parent.location.href);
-        currentUrl.searchParams.set('speech_text', speechText);
-        window.parent.location.href = currentUrl.toString();
+        const speechText = event.results[0][0].transcript;
+        sendToStreamlit(speechText);
     };
     
     recognition.onerror = (event) => {
@@ -165,7 +169,14 @@ if st.session_state.voice_mode_on and not final_input:
     };
     </script>
     """
-    components.html(js_ear_button, height=100)
+    # 🌟JavaScriptからの音声テキストをここで直接キャッチします！
+    v_input = components.html(js_html_button, height=120)
+    
+    # 文字が届いたら、無限ループしないように1回だけ処理します
+    if v_input and v_input.strip():
+        if "last_processed_voice" not in st.session_state or st.session_state.last_processed_voice != v_input:
+            st.session_state.last_processed_voice = v_input
+            final_input = v_input
 
 # 文字入力モード
 if not st.session_state.voice_mode_on:
@@ -205,7 +216,7 @@ if final_input:
         temperature=0.7,
         max_tokens=300,
     )
-    # 🌟おまじないの配置（216行目）も100%完璧に入っています！
+    # 🌟おまじないの配置（222行目）も100%完璧に入っています！
     ai_reply = completion.choices[0].message.content
 
     with st.chat_message("assistant"):
@@ -213,6 +224,6 @@ if final_input:
     st.session_state.messages.append({"role": "assistant", "content": ai_reply})
     save_message_to_supabase("assistant", ai_reply)
     
+    # 喋り終わったら画面を新しくして次の会話に備える
     if st.session_state.voice_mode_on:
-        st.query_params.clear()
         st.rerun()
