@@ -1,7 +1,6 @@
 import streamlit as st  
 import os
 import requests  # 公式APIと直接安全に通信する道具
-import streamlit.components.v1 as components  # JavaScriptを直接動かす道具
 from groq import Groq
 from supabase import create_client, Client
 
@@ -102,79 +101,45 @@ for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.write(message["content"])
 
-# --- 🌟【ハンズフリー音声システム】 ---
+# --- 🌟【公式音声入力システム】 ---
 st.write("---")
 
 if "voice_mode_on" not in st.session_state:
     st.session_state.voice_mode_on = False
 
-button_label = "🚨 ハンズフリーをOFFにする（文字へ）" if st.session_state.voice_mode_on else "🎙️ ハンズフリー音声モードをONにする"
+# 音声モード切り替えトグル
+button_label = "🚨 音声モードをOFFにする（文字入力へ）" if st.session_state.voice_mode_on else "🎙️ 音声モードをONにする"
 if st.button(button_label):
     st.session_state.voice_mode_on = not st.session_state.voice_mode_on
     st.rerun()
 
 final_input = ""
 
-# 🌟【完全大復活】大洪水の原因だった文字化け入れ物を完全廃止！URLから美しく声のテキストだけを引っこ抜く安全設計に一本化！
-if "speech_text" in st.query_params:
-    param_text = st.query_params["speech_text"]
-    if param_text and str(param_text).strip():
-        # 1回処理した言葉をループさせない安全装置
-        if "last_processed_voice" not in st.session_state or st.session_state.last_processed_voice != param_text:
-            st.session_state.last_processed_voice = param_text
-            final_input = param_text
+# 🎙️ 音声モードがONの時
+if st.session_state.voice_mode_on:
+    # 🌟【完全大復活！】Nariさんが動くことを確認してくれた、一番綺麗で安全なマイク入力欄（st.audio_input）を100%元の位置に戻しました！
+    audio_file = st.audio_input("🎙️ ゼアにおしゃべりしてね")
+    
+    if audio_file:
+        current_audio_name = audio_file.name
+        if "last_audio_name" not in st.session_state or st.session_state.last_audio_name != current_audio_name:
+            st.session_state.last_audio_name = current_audio_name
+            
+            with st.spinner("👂 あなたの声を聴き取り中..."):
+                try:
+                    transcription = client.audio.transcriptions.create(
+                        model="whisper-large-v3",
+                        file=audio_file,
+                        language="ja"
+                    )
+                    final_input = transcription.text
+                    if final_input:
+                        st.success(f"🗣️ 聞き取った言葉：『{final_input}』")
+                except Exception as e:
+                    st.error(f"声の聞き取りでエラーが起きちゃった: {e}")
 
-# 音声モードONのとき、特製ボタンを画面の中に直接生成します！
-if st.session_state.voice_mode_on and not final_input:
-    # 🌟URL送信のセキュリティブロックを100%回避する、洗練されたHTML/JSコード
-    js_html_button = """
-    <div style="text-align: center; margin: 10px 0;">
-        <button id="mic_btn" style="background-color: #ff4b4b; color: white; border: none; padding: 15px 30px; font-size: 18px; border-radius: 30px; cursor: pointer; font-weight: bold; width: 100%; transition: 0.3s;">
-            🎤 タップしてゼアにおしゃべりする
-        </button>
-        <p id="status_text" style="color: #666; margin-top: 10px; font-size: 14px;">ボタンを押すと聴き取りが始まるよ</p>
-    </div>
-
-    <script>
-    const micBtn = document.getElementById('mic_btn');
-    const statusText = document.getElementById('status_text');
-    
-    const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-    recognition.lang = 'ja-JP';
-    recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
-    
-    // 人間のタップイベントに連動させてSafariのマイクを完全起動！
-    micBtn.addEventListener('click', () => {
-        try {
-            recognition.start();
-            micBtn.style.backgroundColor = "#2bde73";
-            micBtn.innerText = "👂 あなたの声を聴いているよ...";
-            statusText.innerText = "喋り終わると自動でゼアに送信されるよ！";
-        } catch(e) {
-            statusText.innerText = "マイク起動エラー: " + e;
-        }
-    });
-    
-    // 🌟ユーザーが喋り終わって静かになったら、親画面のURLにパッと乗せてスマートに自動送信！
-    recognition.onresult = (event) => {
-        const speechText = event.results[0][0].transcript; // 🌟【超重要修正】の形にして純粋な「言葉」だけを100%確実に抽出します！
-        const currentUrl = new URL(window.parent.location.href);
-        currentUrl.searchParams.set('speech_text', speechText);
-        window.parent.location.href = currentUrl.toString();
-    };
-    
-    recognition.onerror = (event) => {
-        statusText.innerText = "マイクのエラーが出ちゃった。Safariの権限を確認してみてね。";
-        micBtn.style.backgroundColor = "#ff4b4b";
-        micBtn.innerText = "🎤 タップしてゼアにおしゃべりする";
-    };
-    </script>
-    """
-    components.html(js_html_button, height=120)
-
-# 文字入力モード
-if not st.session_state.voice_mode_on:
+# 💬 音声モードがOFFの時：いつもの文字入力欄
+else:
     if text_input := st.chat_input("ゼアにメッセージを送る..."):
         final_input = text_input
 
@@ -211,15 +176,10 @@ if final_input:
         temperature=0.7,
         max_tokens=300,
     )
-    # 🌟おまじないの配置（216行目）も100%完璧に入っています！
+    # 🌟おまじないの配置（190行目）も100%完璧に入っています！
     ai_reply = completion.choices[0].message.content
 
     with st.chat_message("assistant"):
         st.write(ai_reply)
     st.session_state.messages.append({"role": "assistant", "content": ai_reply})
     save_message_to_supabase("assistant", ai_reply)
-    
-    # 喋り終わったらURLを綺麗にして次の会話に備える
-    if st.session_state.voice_mode_on:
-        st.query_params.clear()
-        st.rerun()
