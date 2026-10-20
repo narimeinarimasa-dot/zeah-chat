@@ -130,7 +130,7 @@ if user_input := st.chat_input("ゼアにメッセージを送る..."):
     for msg in st.session_state.messages:
         api_messages.append({"role": msg["role"], "content": msg["content"]})
 
-    completion = client.chat.completions.create(
+    completion = client.chat.completions[0].create(
         model="qwen/qwen3.8-27b",
         messages=api_messages,
         temperature=0.7,
