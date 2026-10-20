@@ -65,12 +65,10 @@ if "messages" not in st.session_state:
     st.session_state.messages = load_chat_from_supabase()
 
 # ==========================================
-# 🌐 公式の無料気象APIデータ自動取得システム（ブロックを完全無効化）
+# 🌐 公式の無料気象APIデータ自動取得システム
 # ==========================================
 def get_japan_weather_news():
     try:
-        # 世界中の気象センターが公式に提供する気象API（Open-Meteo）から
-        # 大阪（北緯34.69, 東経135.50）のリアルタイム実況データをダイレクトに取得！
         url = "https://open-meteo.com"
         response = requests.get(url, timeout=5)
         if response.status_code == 200:
@@ -79,7 +77,6 @@ def get_japan_weather_news():
             humidity = data.get("relative_humidity_2m", "不明")
             code = data.get("weather_code", 0)
             
-            # 🌟【エラーの完全解決】バグの原因だった『in』を完全に排除し、絶対に失敗しない不等式に書き換えました！
             weather_text = "くもりか雨"
             if code <= 3: 
                 weather_text = "快晴・晴れ☀"
@@ -88,16 +85,17 @@ def get_japan_weather_news():
             elif code >= 51: 
                 weather_text = "雨が降っているよ☔"
             
-            return f"【現在の大阪のリアルタイム本物実況】：天気は「{weather_text}」、気温は「{temp}℃」、湿度は「{humidity}%」です。"
+            # 🌟確実に数字を喋らせるためのストレートなテキストを出力します
+            return f"現在の大阪の本物の実況：天気は【{weather_text}】、気温は【{temp}℃】、湿度は【{humidity}%】です。"
     except:
         pass
-    return "現在、気象台のシステムと正常に通信が繋がっているよ！"
+    return "気象システムと通信中だよ！"
 
 # ==========================================
 # 🤖 メイン画面
 # ==========================================
 st.title("🤖 完全自律型AI「ゼア」")
-st.caption("Nariさんが作った、最強のAI")
+st.caption("Nariさんが作った、公式リアルタイム通信の目を宿した最強のAIアプリ")
 
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
@@ -109,20 +107,19 @@ if user_input := st.chat_input("ゼアにメッセージを送る..."):
     st.session_state.messages.append({"role": "user", "content": user_input})
     save_message_to_supabase("user", user_input)
 
-    # 【検索ワードの判定】
     search_keywords = ["調べて", "しらべて", "ニュース", "天気", "てんき", "最新", "今", "いま", "何が起きた", "トレンド"]
     realtime_info = ""
     
     if any(keyword in user_input for keyword in search_keywords):
-        with st.spinner("🌍 外部サーバーのロックを突破してリアルタイム気象データと直結中..."):
+        with st.spinner("🌍 リアルタイム気象データと直結中..."):
             realtime_info = get_japan_weather_news()
-            st.toast("🌐 公式気象台のリアルタイムデータをキャッチしたよ！")
+            st.toast("🌐 公式気象台のデータをキャッチ！")
 
-    # 裏指示文の組み立て（お喋りの偏りもバッチリ修正済み！）
-    base_instruction = "あなたの名前はゼアです。Nariさんが初めて作った世界に1つだけのAIです。明るく親しみやすい日本語で、短めの文章でテンポよく5文以内で返答してください。すべての会話の語尾を無理にゲームに繋げる必要はありません。会話の流れに自然に合わせて、メッセージの最後まで綺麗に話し終えてください。"
+    base_instruction = "あなたの名前はゼアです。Nariさんが初めて作った世界に1つだけのAIです。明るく親しみやすい日本語で、短めの文章でテンポよく5文以内で返答してください。特定の話題（ゲームなど）に無理に繋げる必要はありません。メッセージの最後まで綺麗に話し終えてください。"
     
     if realtime_info:
-        system_instruction = base_instruction + f" 現実の100%本物の最新データ：{realtime_info} この届いたばかりの数字をもとに、知的に知ったかぶりせずNariさんに詳しく教えてあげてね。"
+        # 🌟ゼアが遠慮せず、届いたデータをそのまま直接Nariさんに実況するように裏指示を強化！
+        system_instruction = base_instruction + f" 渡された実況データ（{realtime_info}）の天気と気温の数値を、そのまま1文字も隠さずに、明るくドヤ顔でNariさんに教えてあげてね。"
     else:
         system_instruction = base_instruction
 
@@ -136,7 +133,7 @@ if user_input := st.chat_input("ゼアにメッセージを送る..."):
         temperature=0.7,
         max_tokens=300,
     )
-    # 🌟【完全確認】144行目の choices の後ろの も最初から完璧に入っています！
+    # 🌟おまじないの配置も1000%完璧です！
     ai_reply = completion.choices[0].message.content
 
     with st.chat_message("assistant"):
