@@ -1,4 +1,5 @@
 streamlit
 groq
 supabase
-duckduckgo_search
+requests
+streamlit-mic-recorder
