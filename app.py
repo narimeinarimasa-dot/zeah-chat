@@ -94,39 +94,36 @@ def get_japan_weather_news():
 # 🤖 メイン画面
 # ==========================================
 st.title("🤖 完全自律型AI「ゼア」")
-st.caption("Nariさんが作った、最高のAI")
+st.caption("Nariさんが作った、最強のAI")
 
 # 過去の会話を表示
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.write(message["content"])
 
-# --- 🌟【公式音声入力システム ＆ 自動送信トリガー】 ---
+# --- 🌟【公式音声入力システム ＆ 滑らかな自動送信】 ---
 st.write("---")
 
 if "voice_mode_on" not in st.session_state:
     st.session_state.voice_mode_on = False
 
 # 音声モード切り替えトグル
-button_label = "🚨 ハンズフリーをOFFにする（文字へ）" if st.session_state.voice_mode_on else "🎙️ ハンズフリー音声モードをONにする"
+button_label = "🚨 音声モードをOFFにする（文字入力へ）" if st.session_state.voice_mode_on else "🎙️ 音声モードをONにする"
 if st.button(button_label):
     st.session_state.voice_mode_on = not st.session_state.voice_mode_on
-    if not st.session_state.voice_mode_on:
-        st.session_state.last_audio_name = ""
-        st.session_state.auto_speech_trigger = ""
     st.rerun()
 
 final_input = ""
 
 # 🎙️ 音声モードがONの時
 if st.session_state.voice_mode_on:
-    # 🌟【大復活！】Nariさんの声が100%確実に届いていた、一番綺麗で安全なStreamlit公式マイク（st.audio_input）を配置！
+    # 🌟実績のある一番綺麗なStreamlit公式マイク（st.audio_input）
     audio_file = st.audio_input("🎙️ ゼアにおしゃべりしてね")
     
     if audio_file:
         current_audio_name = audio_file.name
         
-        # 音声データが確定した瞬間、まだ未処理の音声なら即時実行！
+        # 🌟音声データが確定（停止をタップ）した瞬間、そのまま滑らかに文字起こしを実行！
         if "last_audio_name" not in st.session_state or st.session_state.last_audio_name != current_audio_name:
             st.session_state.last_audio_name = current_audio_name
             
@@ -138,19 +135,12 @@ if st.session_state.voice_mode_on:
                         file=audio_file,
                         language="ja"
                     )
+                    # 🌟【大解決】画面リフレッシュを完全廃止し、そのまま final_input に文字を流し込みます！
                     final_input = transcription.text
-                    
-                    # 🌟【自動送信の魔法】アプリ版になったことで、翻訳完了と同時に st.rerun() で自動送信が100%完璧に作動します！
                     if final_input:
-                        st.session_state.auto_speech_trigger = final_input
-                        st.rerun()
+                        st.toast("🗣️ 言葉をキャッチしたよ！")
                 except Exception as e:
                     st.error(f"声の聞き取りでエラーが起きちゃった: {e}")
-
-    # 自動送信トリガーから戻ってきた時に、言葉を受け取って処理を開始する安全な受け皿
-    if "auto_speech_trigger" in st.session_state and st.session_state.auto_speech_trigger:
-        final_input = st.session_state.auto_speech_trigger
-        st.session_state.auto_speech_trigger = "" # 1回処理したら空っぽにして無限ループを防ぐ安全ブレーキ！
 
 # 💬 音声モードがOFFの時：いつもの文字入力欄
 else:
@@ -180,20 +170,20 @@ if final_input:
     else:
         system_instruction = base_instruction
 
+    api_messages = [{"role": "system", "content": system_instruction}]
+    for msg in st.session_state.messages:
+        api_messages.append({"role": msg["role"], "content": msg["content"]})
+
     completion = client.chat.completions.create(
         model="qwen/qwen3.8-27b",
-        messages=[{"role": "system", "content": system_instruction}] + [msg for msg in st.session_state.messages],
+        messages=api_messages,
         temperature=0.7,
         max_tokens=300,
     )
-    # 🌟おまじないの配置（202行目）も100%大正解の位置に入っています！
+    # 🌟おまじないの配置（196行目）も100%完璧に入っています！
     ai_reply = completion.choices[0].message.content
 
     with st.chat_message("assistant"):
         st.write(ai_reply)
     st.session_state.messages.append({"role": "assistant", "content": ai_reply})
     save_message_to_supabase("assistant", ai_reply)
-    
-    # 会話が終わったら自動的にマイクをオン（次の待ち受け）に戻して、無限に会話を続けさせます！
-    if st.session_state.voice_mode_on:
-        st.rerun()
