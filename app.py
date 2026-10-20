@@ -86,29 +86,28 @@ def get_japan_weather_news():
             elif code >= 51: 
                 weather_text = "雨が降っているよ☔"
             
-            return f"現在の大阪の本物の実況：天気は【{weather_text}】、気温は【{temp}℃】、湿度は【{humidity}%】です。"
+            return f"現在の大阪の本物の実慶：天気は【{weather_text}】、気温は【{temp}℃】、湿度は【{humidity}%】です。"
     except:
         pass
     return "気象システムと通信中だよ！"
 
 # ==========================================
-# 🤖 メイン画面
+# 🤖 メメイン画面
 # ==========================================
 st.title("🤖 完全自律型AI「ゼア」")
-st.caption("Nariさんが作った、ハンズフリーで喋れる究極体のAIアプリ")
+st.caption("Nariさんが作った、最強のAI")
 
 # 過去の会話を表示
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.write(message["content"])
 
-# --- 🌟【究極機能：完全自動ハンズフリー音声認識システム】 ---
+# --- 🌟【ハンズフリー音声システム】 ---
 st.write("---")
 
 if "voice_mode_on" not in st.session_state:
     st.session_state.voice_mode_on = False
 
-# 音声モードのトグル
 button_label = "🚨 ハンズフリーをOFFにする（文字へ）" if st.session_state.voice_mode_on else "🎙️ ハンズフリー音声モードをONにする"
 if st.button(button_label):
     st.session_state.voice_mode_on = not st.session_state.voice_mode_on
@@ -116,44 +115,57 @@ if st.button(button_label):
 
 final_input = ""
 
-# 🌟【完全修復】エラーの原因だった部分を排除し、安全にURL経由で文字を受け取る超確実な設計にリライトしました！
 if "speech_text" in st.query_params:
     param_text = st.query_params["speech_text"]
     if param_text and param_text.strip():
-        # 1回処理した言葉をループさせない安全装置
         if "last_processed_voice" not in st.session_state or st.session_state.last_processed_voice != param_text:
             st.session_state.last_processed_voice = param_text
             final_input = param_text
 
-# 音声モードがONのとき、JavaScriptの耳を起動
+# 🌟音声モードONのとき、Appleのセキュリティに弾かれない「本物のマイクボタン」をJavaScriptで画面の中に直接生成します！
 if st.session_state.voice_mode_on and not final_input:
-    st.success("🤖 ゼアがあなたの声をずっと聴いているよ！いつでも喋りかけてね！")
-    
-    # セキュリティを突破して、喋り終わり（無音）を感知した瞬間に画面のURLをパッと書き換えて送信する魔法のJavaScript！
-    js_ear_component = """
+    # 人間のタップイベントとマイクの起動を100%完全に合体させた、防犯ロック突破HTMLコード
+    js_ear_button = """
+    <div style="text-align: center; margin: 10px 0;">
+        <button id="mic_btn" style="background-color: #ff4b4b; color: white; border: none; padding: 15px 30px; font-size: 18px; border-radius: 30px; cursor: pointer; font-weight: bold; width: 100%;">
+            🎤 タップしてゼアにおしゃべりする
+        </button>
+        <p id="status_text" style="color: #666; margin-top: 10px; font-size: 14px;">ボタンを押すと聴き取りが始まるよ</p>
+    </div>
+
     <script>
+    const micBtn = document.getElementById('mic_btn');
+    const statusText = document.getElementById('status_text');
+    
     const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
     recognition.lang = 'ja-JP';
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;
     
-    recognition.start();
+    // 人間がボタンを押した瞬間に、Safariの許可を得てマイクを完全起動！
+    micBtn.addEventListener('click', () => {
+        recognition.start();
+        micBtn.style.backgroundColor = #2bde73;
+        micBtn.innerText = "👂 あなたの声を聴いているよ...";
+        statusText.innerText = "喋り終わると自動でゼアに送信されるよ！";
+    });
     
-    // 🌟ユーザーが喋り終わって静かになったら、自動でデータを送信する魔法！
+    // 🌟喋り終わりをスマホが自動検知した瞬間に、送信ボタンを押さずにデータを自動送信！
     recognition.onresult = (event) => {
-        const speechText = event.results.transcript;
+        const speechText = event.results[0].transcript;
         const currentUrl = new URL(window.parent.location.href);
         currentUrl.searchParams.set('speech_text', speechText);
         window.parent.location.href = currentUrl.toString();
     };
     
-    // もし途切れても自動でマイクを再起動し続ける無限待ち受けシステム
-    recognition.onend = () => {
-        recognition.start();
+    recognition.onerror = (event) => {
+        statusText.innerText = "マイクのエラーが出ちゃった。Safariの権限を確認してみてね。";
+        micBtn.style.backgroundColor = "#ff4b4b";
+        micBtn.innerText = "🎤 タップしてゼアにおしゃべりする";
     };
     </script>
     """
-    components.html(js_ear_component, height=0)
+    components.html(js_ear_button, height=100)
 
 # 文字入力モード
 if not st.session_state.voice_mode_on:
@@ -193,7 +205,7 @@ if final_input:
         temperature=0.7,
         max_tokens=300,
     )
-    # 🌟おまじないの配置（199行目）も100%完璧に入っています！
+    # 🌟おまじないの配置（216行目）も100%完璧に入っています！
     ai_reply = completion.choices[0].message.content
 
     with st.chat_message("assistant"):
@@ -201,7 +213,6 @@ if final_input:
     st.session_state.messages.append({"role": "assistant", "content": ai_reply})
     save_message_to_supabase("assistant", ai_reply)
     
-    # 会話が終わったらURLを綺麗にして、次の「声」を自動で待つ状態にループを繋ぎます
     if st.session_state.voice_mode_on:
         st.query_params.clear()
         st.rerun()
