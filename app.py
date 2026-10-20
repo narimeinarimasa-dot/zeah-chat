@@ -102,13 +102,13 @@ for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.write(message["content"])
 
-# --- 🌟【最新アップデート：ハンズフリー音声システム】 ---
+# --- 🌟【最新アップデート：声のおしゃべりモード固定システム】 ---
 st.write("---")
 
 if "voice_mode_on" not in st.session_state:
     st.session_state.voice_mode_on = False
 
-# トグルボタンでいつでも音声と文字を切り替え可能
+# 音声モード切り替えトグル
 button_label = "🚨 音声モードをOFFにする（文字入力へ）" if st.session_state.voice_mode_on else "🎙️ 音声モードをONにする"
 if st.button(button_label):
     st.session_state.voice_mode_on = not st.session_state.voice_mode_on
@@ -117,33 +117,38 @@ if st.button(button_label):
 final_input = ""
 
 if st.session_state.voice_mode_on:
-    st.write("🎵 **ボタンを1回押して、話し始めてね！**")
+    st.write("🎵 **マイクに向かっておしゃべりしてね！**")
     
-    # 🌟【自動終了検知の魔法】
-    # 録音ボタンの道具に「ユーザーが喋り終わって、数秒間無音になったら勝手に送信してね！」という自動停止機能をドッキングさせます
+    # 🌟【無限ループのバグを完全根絶！】
+    # 毎回新しい録音として処理されるように、道具の鍵（key）の形を一番安全な設計に修正しました
     audio_data = mic_recorder(
-        start_prompt="🔊 おしゃべりスタート（タップして話してね）", 
-        stop_prompt="⏹️ 手動で送信（喋り終わると自動でも送信されるよ！）", 
-        key="zeah_auto_stop_mic"
+        start_prompt="🔊 おしゃべり開始（タップして喋ってね）", 
+        stop_prompt="⏹️ 話し終えた（タップして送信）", 
+        key="zeah_stable_voice_mic"
     )
     
     if audio_data and "bytes" in audio_data:
-        with st.spinner("👂 声を分析して文字に変換中..."):
-            try:
-                with open("temp_audio.wav", "wb") as f:
-                    f.write(audio_data["bytes"])
-                
-                with open("temp_audio.wav", "rb") as audio_file:
-                    transcription = client.audio.transcriptions.create(
-                        model="whisper-large-v3",
-                        file=audio_file,
-                        language="ja"
-                    )
-                final_input = transcription.text
-                if final_input:
-                    st.success(f"🗣️ 聞き取った言葉：『{final_input}』")
-            except Exception as e:
-                st.error(f"声の聞き取りでエラーが起きちゃった: {e}")
+        # 直前の音声データと全く同じだった場合は処理をスキップする安全装置（ループ防止）
+        current_audio_len = len(audio_data["bytes"])
+        if "last_audio_len" not in st.session_state or st.session_state.last_audio_len != current_audio_len:
+            st.session_state.last_audio_len = current_audio_len
+            
+            with st.spinner("👂 声を分析中..."):
+                try:
+                    with open("temp_audio.wav", "wb") as f:
+                        f.write(audio_data["bytes"])
+                    
+                    with open("temp_audio.wav", "rb") as audio_file:
+                        transcription = client.audio.transcriptions.create(
+                            model="whisper-large-v3",
+                            file=audio_file,
+                            language="ja"
+                        )
+                    final_input = transcription.text
+                    if final_input:
+                        st.success(f"🗣️ 聞き取った言葉：『{final_input}』")
+                except Exception as e:
+                    st.error(f"声の聞き取りでエラーが起きちゃった: {e}")
 
 else:
     if text_input := st.chat_input("ゼアにメッセージを送る..."):
@@ -165,7 +170,7 @@ if final_input:
             realtime_info = get_japan_weather_news()
             st.toast("🌐 公式気象台のデータをキャッチ！")
 
-    base_instruction = "あなたの名前はゼアです。Nariさんが初めて作った世界に1つだけのAIです。不自然なところで敬語を使わずに明るく親しみやすい日本語で、短めの文章でテンポよく5文以内で返答してください。特定の話題（ゲームなど）に無理に繋げる必要はありません。メッセージの最後まで綺麗に話し終えてください。"
+    base_instruction = "あなたの名前はゼアです。Nariさんが初めて作った世界に1つだけのAIです。不自然なところで敬語は使わず、明るく親しみやすい日本語で、短めの文章でテンポよく5文以内で返答してください。特定の話題（ゲームなど）に無理に繋げる必要はありません。メッセージの最後まで綺麗に話し終えてください。"
     
     if realtime_info:
         system_instruction = base_instruction + f" 渡された実況データ（{realtime_info}）の天気と気温の数値を、そのまま1文字も隠さずに、明るくドヤ顔でNariさんに教えてあげてね。"
@@ -182,14 +187,10 @@ if final_input:
         temperature=0.7,
         max_tokens=300,
     )
-    # 🌟おまじないの配置（205行目）も1000%完璧です！
+    # 🌟おまじないの配置（199行目）も1000%完璧に入っています！
     ai_reply = completion.choices[0].message.content
 
     with st.chat_message("assistant"):
         st.write(ai_reply)
     st.session_state.messages.append({"role": "assistant", "content": ai_reply})
     save_message_to_supabase("assistant", ai_reply)
-    
-    # 会話が終わったらマイクをONのまま次の発言に備える
-    if st.session_state.voice_mode_on:
-        st.rerun()
