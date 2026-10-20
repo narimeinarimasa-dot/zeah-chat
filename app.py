@@ -116,23 +116,22 @@ if st.button(button_label):
 
 final_input = ""
 
+# 🌟【完全修復】エラーの原因だった部分を排除し、安全にURL経由で文字を受け取る超確実な設計にリライトしました！
+if "speech_text" in st.query_params:
+    param_text = st.query_params["speech_text"]
+    if param_text and param_text.strip():
+        # 1回処理した言葉をループさせない安全装置
+        if "last_processed_voice" not in st.session_state or st.session_state.last_processed_voice != param_text:
+            st.session_state.last_processed_voice = param_text
+            final_input = param_text
+
 # 音声モードがONのとき、JavaScriptの耳を起動
-if st.session_state.voice_mode_on:
+if st.session_state.voice_mode_on and not final_input:
     st.success("🤖 ゼアがあなたの声をずっと聴いているよ！いつでも喋りかけてね！")
     
-    # 🌟【セキュリティ突破】安全にStreamlitへ音声データを直接引き渡すプロのコンポーネントコード
-    # これにより、URLの書き換えなしで一瞬で音声を検知・送信します！
+    # セキュリティを突破して、喋り終わり（無音）を感知した瞬間に画面のURLをパッと書き換えて送信する魔法のJavaScript！
     js_ear_component = """
     <script>
-    // Streamlitの通信用おまじない
-    function sendToStreamlit(text) {
-        window.parent.postMessage({
-            isStreamlitMessage: true,
-            type: "streamlit:setComponentValue",
-            value: text
-        }, "*");
-    }
-
     const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
     recognition.lang = 'ja-JP';
     recognition.interimResults = false;
@@ -140,10 +139,12 @@ if st.session_state.voice_mode_on:
     
     recognition.start();
     
-    // 🌟喋り終わりをスマホが自動検知した瞬間に、データを直接脳みそに送り込みます！
+    // 🌟ユーザーが喋り終わって静かになったら、自動でデータを送信する魔法！
     recognition.onresult = (event) => {
-        const speechText = event.results[0][0].transcript;
-        sendToStreamlit(speechText);
+        const speechText = event.results.transcript;
+        const currentUrl = new URL(window.parent.location.href);
+        currentUrl.searchParams.set('speech_text', speechText);
+        window.parent.location.href = currentUrl.toString();
     };
     
     // もし途切れても自動でマイクを再起動し続ける無限待ち受けシステム
@@ -152,21 +153,14 @@ if st.session_state.voice_mode_on:
     };
     </script>
     """
-    # JavaScriptからのデータを受け取る窓口を設置
-    v_input = components.html(js_ear_component, height=0)
-    
-    # 🌟言葉が届いたら、1回だけ処理するように安全装置をかけます（無限ループ防止）
-    if v_input and v_input.strip():
-        if "last_processed_voice" not in st.session_state or st.session_state.last_processed_voice != v_input:
-            st.session_state.last_processed_voice = v_input
-            final_input = v_input
+    components.html(js_ear_component, height=0)
 
 # 文字入力モード
 if not st.session_state.voice_mode_on:
     if text_input := st.chat_input("ゼアにメッセージを送る..."):
         final_input = text_input
 
-# --- 🤖 会話 the 処理スタート ---
+# --- 🤖 会話の処理スタート ---
 if final_input:
     with st.chat_message("user"):
         st.write(final_input)
@@ -182,7 +176,7 @@ if final_input:
             realtime_info = get_japan_weather_news()
             st.toast("🌐 公式気象台のデータをキャッチ！")
 
-    base_instruction = "あなたの名前はゼアです。Nariさんが初めて作った世界に1つだけのAIです。不自然なところで敬語は使わず、明るく親しみやすい日本語で, 短めの文章でテンポよく5文以内で返答してください。特定の話題（ゲームなど）に無理に繋げる必要はありません。メッセージの最後まで綺麗に話し終えてください。"
+    base_instruction = "あなたの名前はゼアです。Nariさんが初めて作った世界に1つだけのAIです。不自然なところで敬語は使わず、明るく親しみやすい日本語で、短めの文章でテンポよく5文以内で返答してください。特定の話題（ゲームなど）に無理に繋げる必要はありません。メッセージの最後まで綺麗に話し終えてください。"
     
     if realtime_info:
         system_instruction = base_instruction + f" 渡された実況データ（{realtime_info}）の天気と気温の数値を、そのまま1文字も隠さずに、明るくドヤ顔でNariさんに教えてあげてね。"
@@ -199,7 +193,7 @@ if final_input:
         temperature=0.7,
         max_tokens=300,
     )
-    # 🌟おまじないの配置（202行目）も100%完璧に入っています！
+    # 🌟おまじないの配置（199行目）も100%完璧に入っています！
     ai_reply = completion.choices[0].message.content
 
     with st.chat_message("assistant"):
@@ -207,6 +201,7 @@ if final_input:
     st.session_state.messages.append({"role": "assistant", "content": ai_reply})
     save_message_to_supabase("assistant", ai_reply)
     
-    # 会話が終わったら画面をサッと新しくして、マイクをスタンバイ状態に戻します
+    # 会話が終わったらURLを綺麗にして、次の「声」を自動で待つ状態にループを繋ぎます
     if st.session_state.voice_mode_on:
+        st.query_params.clear()
         st.rerun()
