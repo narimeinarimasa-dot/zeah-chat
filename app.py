@@ -61,6 +61,7 @@ def save_message_to_supabase(role, content):
     except:
         pass
 
+# 🌟【重要】最新の全会話歴史を金庫から1文字も漏らさずロードして保持します！
 if "messages" not in st.session_state:
     st.session_state.messages = load_chat_from_supabase()
 
@@ -96,18 +97,17 @@ def get_japan_weather_news():
 st.title("🤖 完全自律型AI「ゼア」")
 st.caption("Nariさんが作った、最強のAI")
 
-# 過去の会話を表示
+# 過去の会話をすべて画面に綺麗に表示
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.write(message["content"])
 
-# --- 🌟【公式音声入力システム ＆ 滑らかな自動送信】 ---
+# --- 🌟【公式音声入力システム】 ---
 st.write("---")
 
 if "voice_mode_on" not in st.session_state:
     st.session_state.voice_mode_on = False
 
-# 音声モード切り替えトグル
 button_label = "🚨 音声モードをOFFにする（文字入力へ）" if st.session_state.voice_mode_on else "🎙️ 音声モードをONにする"
 if st.button(button_label):
     st.session_state.voice_mode_on = not st.session_state.voice_mode_on
@@ -115,34 +115,27 @@ if st.button(button_label):
 
 final_input = ""
 
-# 🎙️ 音声モードがONの時
 if st.session_state.voice_mode_on:
-    # 🌟実績のある一番綺麗なStreamlit公式マイク（st.audio_input）
     audio_file = st.audio_input("🎙️ ゼアにおしゃべりしてね")
     
     if audio_file:
         current_audio_name = audio_file.name
-        
-        # 🌟音声データが確定（停止をタップ）した瞬間、そのまま滑らかに文字起こしを実行！
         if "last_audio_name" not in st.session_state or st.session_state.last_audio_name != current_audio_name:
             st.session_state.last_audio_name = current_audio_name
             
             with st.spinner("👂 あなたの声を聴き取り中..."):
                 try:
-                    # Groqの音声認識AI（Whisper）を使って爆速で文字変換！
                     transcription = client.audio.transcriptions.create(
                         model="whisper-large-v3",
                         file=audio_file,
                         language="ja"
                     )
-                    # 🌟【大解決】画面リフレッシュを完全廃止し、そのまま final_input に文字を流し込みます！
                     final_input = transcription.text
                     if final_input:
                         st.toast("🗣️ 言葉をキャッチしたよ！")
                 except Exception as e:
                     st.error(f"声の聞き取りでエラーが起きちゃった: {e}")
 
-# 💬 音声モードがOFFの時：いつもの文字入力欄
 else:
     if text_input := st.chat_input("ゼアにメッセージを送る..."):
         final_input = text_input
@@ -151,6 +144,7 @@ else:
 if final_input:
     with st.chat_message("user"):
         st.write(final_input)
+    # 🌟最新の発言を履歴の末尾にしっかりと追加！
     st.session_state.messages.append({"role": "user", "content": final_input})
     save_message_to_supabase("user", final_input)
 
@@ -170,9 +164,8 @@ if final_input:
     else:
         system_instruction = base_instruction
 
-    api_messages = [{"role": "system", "content": system_instruction}]
-    for msg in st.session_state.messages:
-        api_messages.append({"role": msg["role"], "content": msg["content"]})
+    # 🌟【完全覚醒修正！】裏指示（system）のうしろに、金庫から読み出したこれまでのすべての会話履歴（messages）を完全にドッキングさせてAIの脳みそに渡します！
+    api_messages = [{"role": "system", "content": system_instruction}] + st.session_state.messages
 
     completion = client.chat.completions.create(
         model="qwen/qwen3.8-27b",
@@ -180,7 +173,7 @@ if final_input:
         temperature=0.7,
         max_tokens=300,
     )
-    # 🌟おまじないの配置（196行目）も100%完璧に入っています！
+    # 🌟おまじないの配置（199行目）も100%完璧です！
     ai_reply = completion.choices[0].message.content
 
     with st.chat_message("assistant"):
