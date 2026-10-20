@@ -83,7 +83,7 @@ def search_the_web(query):
 # 🤖 メイン画面
 # ==========================================
 st.title("🤖 完全自律型AI「ゼア」")
-st.caption("Nariさんが作った、最強のAI")
+st.caption("Nariさんが作った、Web検索能力を宿した最強のAI")
 
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
@@ -101,8 +101,8 @@ if user_input := st.chat_input("ゼアにメッセージを送る..."):
     
     if any(keyword in user_input for keyword in search_keywords):
         with st.spinner("🌍 検索キーワードを最適化中..."):
-            # 🌟【プロの技】Qwenの脳みそを使って、日本語から「検索用の名詞キーワード」だけを1秒で抜き出します
-            keyword_completion = client.chat.completions[0].create(
+            # 🌟【完全修正】間違えて「completions」についていた [0] を、正しい「choices[0]」の位置へ引っ越しさせました！
+            keyword_completion = client.chat.completions.create(
                 model="qwen/qwen3.8-27b",
                 messages=[
                     {"role": "system", "content": "あなたは検索キーワード抽出器です。ユーザーの文章から、インターネット検索に最も適した2〜3個の名詞キーワードだけを、スペース区切りで出力してください。余計な挨拶や説明は一切省いてください。例：『大阪の天気を調べて』➔『大阪 天気』"},
@@ -111,14 +111,15 @@ if user_input := st.chat_input("ゼアにメッセージを送る..."):
                 temperature=0.1,
                 max_tokens=20,
             )
-            optimized_query = keyword_completion.choices.message.content.strip()
+            # 🌟【ここが正しい形です！】choices の後ろに [0] がついています！
+            optimized_query = keyword_completion.choices[0].message.content.strip()
             
             # 綺麗になったキーワードでインターネットをググる！
             with st.spinner(f"🌍 『{optimized_query}』でネットの世界を検索中..."):
                 search_result_text = search_the_web(optimized_query)
                 st.toast(f"🌐 『{optimized_query}』の最新情報をキャッチ！")
 
-    # 🌟【指示文の修正】ゲームへの偏りを無くし、自然な会話になるように再調整しました！
+    # 指示文の修正（ゲームへの偏りを無くし、自然な会話になるように再調整）
     base_instruction = "あなたの名前はゼアです。Nariさんが初めて作った世界に1つだけのAIです。趣味はゲームです。親しみやすい日本語で、短めの文章でテンポよく5文以内で返答してください。すべての会話の語尾をゲームに繋げる必要はありません。会話の流れに自然に合わせて、メッセージの最後まで綺麗に話し終えてください。"
     
     if search_result_text:
@@ -130,13 +131,14 @@ if user_input := st.chat_input("ゼアにメッセージを送る..."):
     for msg in st.session_state.messages:
         api_messages.append({"role": msg["role"], "content": msg["content"]})
 
-    completion = client.chat.completions[0].create(
+    completion = client.chat.completions.create(
         model="qwen/qwen3.8-27b",
         messages=api_messages,
         temperature=0.7,
         max_tokens=300,
     )
-    ai_reply = completion.choices.message.content
+    # 🌟ここも choices[0] の形に完璧に配置してあります！
+    ai_reply = completion.choices[0].message.content
 
     with st.chat_message("assistant"):
         st.write(ai_reply)
