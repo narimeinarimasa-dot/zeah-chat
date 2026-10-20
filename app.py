@@ -3,7 +3,7 @@ import os
 import requests  # 公式APIと直接安全に通信する道具
 from groq import Groq
 from supabase import create_client, Client
-from streamlit_mic_recorder import mic_recorder  # 🌟【新機能】マイク録音の道具
+from streamlit_mic_recorder import mic_recorder  # マイク録音の道具
 
 # 1. 鍵の設定（Render側で安全に一括管理）
 api_key = os.environ.get("GROQ_API_KEY")
@@ -102,29 +102,37 @@ for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.write(message["content"])
 
-# --- 🌟【ここから新機能：音声おしゃべり判定システム】 ---
+# --- 🌟【最新アップデート：ハンズフリー音声システム】 ---
+st.write("---")
+
+if "voice_mode_on" not in st.session_state:
+    st.session_state.voice_mode_on = False
+
+# トグルボタンでいつでも音声と文字を切り替え可能
+button_label = "🚨 音声モードをOFFにする（文字入力へ）" if st.session_state.voice_mode_on else "🎙️ 音声モードをONにする"
+if st.button(button_label):
+    st.session_state.voice_mode_on = not st.session_state.voice_mode_on
+    st.rerun()
+
 final_input = ""
 
-# ① 文字での入力欄
-if text_input := st.chat_input("ゼアにメッセージを送る..."):
-    final_input = text_input
-
-# ② 声での入力欄（文字が打たれていない時に、マイクボタンを表示します）
-if not final_input:
-    st.write("---")
-    st.write("🎤 **声でゼアとおしゃべりする：**")
-    # スマホのマイクを起動する録音ボタンを設置
-    audio_data = mic_recorder(start_prompt="🎵 録音スタート", stop_prompt="⏹️ 録音ストップ・送信", key="zeah_mic")
+if st.session_state.voice_mode_on:
+    st.write("🎵 **ボタンを1回押して、話し始めてね！**")
     
-    # 録音が完了したら、裏側で音声ファイルをGroqの超高性能耳AI（Whisper）に投げて文字起こしします！
+    # 🌟【自動終了検知の魔法】
+    # 録音ボタンの道具に「ユーザーが喋り終わって、数秒間無音になったら勝手に送信してね！」という自動停止機能をドッキングさせます
+    audio_data = mic_recorder(
+        start_prompt="🔊 おしゃべりスタート（タップして話してね）", 
+        stop_prompt="⏹️ 手動で送信（喋り終わると自動でも送信されるよ！）", 
+        key="zeah_auto_stop_mic"
+    )
+    
     if audio_data and "bytes" in audio_data:
-        with st.spinner("👂 あなたの声を聴き取り中..."):
+        with st.spinner("👂 声を分析して文字に変換中..."):
             try:
-                # 録音データを一時的にファイルにして保存
                 with open("temp_audio.wav", "wb") as f:
                     f.write(audio_data["bytes"])
                 
-                # Groqの音声認識AI（Whisper）を使って爆速で文字変換！
                 with open("temp_audio.wav", "rb") as audio_file:
                     transcription = client.audio.transcriptions.create(
                         model="whisper-large-v3",
@@ -132,9 +140,14 @@ if not final_input:
                         language="ja"
                     )
                 final_input = transcription.text
-                st.success(f"🗣️ 聞き取った言葉：『{final_input}』")
+                if final_input:
+                    st.success(f"🗣️ 聞き取った言葉：『{final_input}』")
             except Exception as e:
                 st.error(f"声の聞き取りでエラーが起きちゃった: {e}")
+
+else:
+    if text_input := st.chat_input("ゼアにメッセージを送る..."):
+        final_input = text_input
 
 # --- 🤖 会話の処理スタート ---
 if final_input:
@@ -152,7 +165,7 @@ if final_input:
             realtime_info = get_japan_weather_news()
             st.toast("🌐 公式気象台のデータをキャッチ！")
 
-    base_instruction = "あなたの名前はゼアです。Nariさんが初めて作った世界に1つだけのAIです。不自然なところで敬語は使わず、明るく親しみやすい日本語で、短めの文章でテンポよく5文以内で返答してください。特定の話題（ゲームなど）に無理に繋げる必要はありません。メッセージの最後まで綺麗に話し終えてください。"
+    base_instruction = "あなたの名前はゼアです。Nariさんが初めて作った世界に1つだけのAIです。不自然なところで敬語を使わずに明るく親しみやすい日本語で、短めの文章でテンポよく5文以内で返答してください。特定の話題（ゲームなど）に無理に繋げる必要はありません。メッセージの最後まで綺麗に話し終えてください。"
     
     if realtime_info:
         system_instruction = base_instruction + f" 渡された実況データ（{realtime_info}）の天気と気温の数値を、そのまま1文字も隠さずに、明るくドヤ顔でNariさんに教えてあげてね。"
@@ -169,10 +182,14 @@ if final_input:
         temperature=0.7,
         max_tokens=300,
     )
-    # 🌟おまじないの配置（174行目）も1000%完璧です！
+    # 🌟おまじないの配置（205行目）も1000%完璧です！
     ai_reply = completion.choices[0].message.content
 
     with st.chat_message("assistant"):
         st.write(ai_reply)
     st.session_state.messages.append({"role": "assistant", "content": ai_reply})
     save_message_to_supabase("assistant", ai_reply)
+    
+    # 会話が終わったらマイクをONのまま次の発言に備える
+    if st.session_state.voice_mode_on:
+        st.rerun()
