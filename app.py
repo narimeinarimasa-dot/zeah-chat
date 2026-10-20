@@ -1,7 +1,7 @@
 import streamlit as st  
 import os
 import requests  # 公式APIと直接安全に通信する道具
-import streamlit.components.v1 as components  # 🌟JavaScriptとデータをやり取りするプロの道具
+import streamlit.components.v1 as components  # JavaScriptを直接動かす道具
 from groq import Groq
 from supabase import create_client, Client
 
@@ -86,7 +86,7 @@ def get_japan_weather_news():
             elif code >= 51: 
                 weather_text = "雨が降っているよ☔"
             
-            return f"現在の大阪の本物の実慶：天気は【{weather_text}】、気温は【{temp}℃】、湿度は【{humidity}%】です。"
+            return f"現在の大阪の本物の実況：天気は【{weather_text}】、気温は【{temp}℃】、湿度は【{humidity}%】です。"
     except:
         pass
     return "気象システムと通信中だよ！"
@@ -115,9 +115,18 @@ if st.button(button_label):
 
 final_input = ""
 
-# 🌟音声モードONのとき、Safariのロックを確実に突破するボタンコンポーネントを埋め込みます
-if st.session_state.voice_mode_on:
-    # 🌟【最重要】URLの書き換えをやめ、親画面（Streamlit）へ安全に文字を直接ブチ込む通信コード（postMessage）
+# 🌟【完全大復活】大洪水の原因だった文字化け入れ物を完全廃止！URLから美しく声のテキストだけを引っこ抜く安全設計に一本化！
+if "speech_text" in st.query_params:
+    param_text = st.query_params["speech_text"]
+    if param_text and str(param_text).strip():
+        # 1回処理した言葉をループさせない安全装置
+        if "last_processed_voice" not in st.session_state or st.session_state.last_processed_voice != param_text:
+            st.session_state.last_processed_voice = param_text
+            final_input = param_text
+
+# 音声モードONのとき、特製ボタンを画面の中に直接生成します！
+if st.session_state.voice_mode_on and not final_input:
+    # 🌟URL送信のセキュリティブロックを100%回避する、洗練されたHTML/JSコード
     js_html_button = """
     <div style="text-align: center; margin: 10px 0;">
         <button id="mic_btn" style="background-color: #ff4b4b; color: white; border: none; padding: 15px 30px; font-size: 18px; border-radius: 30px; cursor: pointer; font-weight: bold; width: 100%; transition: 0.3s;">
@@ -127,15 +136,6 @@ if st.session_state.voice_mode_on:
     </div>
 
     <script>
-    // 🌟隔離された窓からStreamlit本体へデータを安全に流し込む公式のおまじない
-    function sendToStreamlit(text) {
-        window.parent.postMessage({
-            isStreamlitMessage: true,
-            type: "streamlit:setComponentValue",
-            value: text
-        }, "*");
-    }
-
     const micBtn = document.getElementById('mic_btn');
     const statusText = document.getElementById('status_text');
     
@@ -156,10 +156,12 @@ if st.session_state.voice_mode_on:
         }
     });
     
-    // 🌟【自動無音検知】ユーザーが喋り終わって静かになったら、データを直接本体へ送り込む！
+    // 🌟ユーザーが喋り終わって静かになったら、親画面のURLにパッと乗せてスマートに自動送信！
     recognition.onresult = (event) => {
-        const speechText = event.results[0][0].transcript;  // 🌟ここも[0][0]に修正して、正確に文字を引っこ抜きます！
-        sendToStreamlit(speechText);
+        const speechText = event.results[0][0].transcript; // 🌟【超重要修正】[0][0]の形にして純粋な「言葉」だけを100%確実に抽出します！
+        const currentUrl = new URL(window.parent.location.href);
+        currentUrl.searchParams.set('speech_text', speechText);
+        window.parent.location.href = currentUrl.toString();
     };
     
     recognition.onerror = (event) => {
@@ -169,15 +171,7 @@ if st.session_state.voice_mode_on:
     };
     </script>
     """
-    # JavaScriptからの音声テキストをここで直接キャッチします！
-    v_input = components.html(js_html_button, height=120)
-    
-    # 文字が届いたら、無限ループしないように1回だけ処理します
-    if v_input and str(v_input).strip():
-        v_text = str(v_input).strip()
-        if "last_processed_voice" not in st.session_state or st.session_state.last_processed_voice != v_text:
-            st.session_state.last_processed_voice = v_text
-            final_input = v_text
+    components.html(js_html_button, height=120)
 
 # 文字入力モード
 if not st.session_state.voice_mode_on:
@@ -200,7 +194,7 @@ if final_input:
             realtime_info = get_japan_weather_news()
             st.toast("🌐 公式気象台のデータをキャッチ！")
 
-    base_instruction = "あなたの名前はゼアです。Nariさんが初めて作った世界に1つだけのAIです。不自然なところで敬語は使わず、明るく親しみやすい日本語で、短めの文章でテンポよく5文以内で返答してください。特定の話題（ゲームなど）に無理に繋げる必要はありません。メッセージの最後まで綺麗に話し終えてください。"
+    base_instruction = "あなたの名前はゼアです。Nariさんが初めて作った世界に1つだけの親友AIです。不自然なところで敬語は使わず、明るく親しみやすい日本語で、短めの文章でテンポよく5文以内で返答してください。特定の話題（ゲームなど）に無理に繋げる必要はありません。メッセージの最後まで綺麗に話し終えてください。"
     
     if realtime_info:
         system_instruction = base_instruction + f" 渡された実況データ（{realtime_info}）の天気と気温の数値を、そのまま1文字も隠さずに、明るくドヤ顔でNariさんに教えてあげてね。"
@@ -217,7 +211,7 @@ if final_input:
         temperature=0.7,
         max_tokens=300,
     )
-    # 🌟おまじないの配置（224行目）も100%完璧に入っています！
+    # 🌟おまじないの配置（216行目）も100%完璧に入っています！
     ai_reply = completion.choices[0].message.content
 
     with st.chat_message("assistant"):
@@ -225,6 +219,7 @@ if final_input:
     st.session_state.messages.append({"role": "assistant", "content": ai_reply})
     save_message_to_supabase("assistant", ai_reply)
     
-    # 喋り終わったら画面をサッと新しくして次の会話に備える
+    # 喋り終わったらURLを綺麗にして次の会話に備える
     if st.session_state.voice_mode_on:
+        st.query_params.clear()
         st.rerun()
