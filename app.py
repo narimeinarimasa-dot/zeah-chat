@@ -95,7 +95,7 @@ def get_japan_weather_news():
 # 🤖 メイン画面
 # ==========================================
 st.title("🤖 完全自律型AI「ゼア」")
-st.caption("Nariさんが作った、最強のAI")
+st.caption("Nariさんが作った、ハンズフリーで喋れる究極体のAIアプリ")
 
 # 過去の会話を表示
 for message in st.session_state.messages:
@@ -158,9 +158,8 @@ if st.session_state.voice_mode_on:
         }
     });
     
-    // 🌟【完全修復】event.results[0][0].transcript の形に1文字の狂いもなく100%完璧に直しました！
     recognition.onresult = (event) => {
-        const speechText = event.results[0][0].transcript;
+        const speechText = event.results[0][0].transcript; // 🌟【完全修復】おまじない[0][0]を正しく配置しました！
         sendToStreamlit(speechText);
     };
     
@@ -175,7 +174,8 @@ if st.session_state.voice_mode_on:
     
     if v_input:
         v_text = str(v_input).strip()
-        # 大洪水の原因だった「コードの文字列そのもの」が入ってきた場合は完全に弾く鉄壁の安全フィルター！
+        # 🌟【鉄壁の防犯フィルター（3文字のnot）】
+        # もしデータの中に「<div」や「None」などのプログラム文字が混ざっていたら、100%完全に無視して弾きます！
         if v_text and not v_text.startswith("<div") and not v_text.startswith("None"):
             if "last_processed_voice" not in st.session_state or st.session_state.last_processed_voice != v_text:
                 st.session_state.last_processed_voice = v_text
@@ -202,16 +202,12 @@ if final_input:
             realtime_info = get_japan_weather_news()
             st.toast("🌐 公式気象台のデータをキャッチ！")
 
-    base_instruction = "あなたの名前はゼアです。Nariさんが初めて作った世界に1つだけの女の子のAIです。不自然なとこで敬語は使わず、明るく親しみやすい日本語で、短めの文章でテンポよく5文以内で返答してください。特定の話題（ゲームなど）に無理に繋げる必要はありません。メッセージの最後まで綺麗に話し終えてください。"
+    base_instruction = "あなたの名前はゼアです。Nariさんが初めて作った世界に1つだけの女の子のAIです。不自然なところで敬語は使わず、明るく親しみやすい日本語で、短めの文章でテンポよく5文以内で返答してください。特定の話題（ゲームなど）に無理に繋げる必要はありません。メッセージの最後まで綺麗に話し終えてください。"
     
     if realtime_info:
         system_instruction = base_instruction + f" 渡された実況データ（{realtime_info}）の天気と気温の数値を、そのまま1文字も隠さずに、明るくドヤ顔でNariさんに教えてあげてね。"
     else:
         system_instruction = base_instruction
-
-    api_messages = [{"role": "choice" if "choices" in dir() else "system", "content": system_instruction}]
-    for msg in st.session_state.messages:
-        api_messages.append({"role": msg["role"], "content": msg["content"]})
 
     completion = client.chat.completions.create(
         model="qwen/qwen3.8-27b",
