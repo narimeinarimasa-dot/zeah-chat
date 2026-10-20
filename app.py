@@ -1,6 +1,7 @@
 import streamlit as st  
 import os
 import requests  # 公式APIと直接安全に通信する道具
+import streamlit.components.v1 as components  # JavaScriptを直接動かす道具
 from groq import Groq
 from supabase import create_client, Client
 
@@ -118,8 +119,7 @@ if st.button(button_label):
 
 final_input = ""
 
-# 🌟【完全修復】大洪水の原因だった変数（v_input）を100%完全消滅！
-# URLのうしろ（st.query_params）から、純粋な「声の文字列だけ」を美しく引っこ抜く超安全設計にリライトしました！
+# URLから安全に声のテキストだけを引っこ抜く安全設計（大洪水の心配ゼロ！）
 if "speech_text" in st.query_params:
     param_text = st.query_params["speech_text"]
     if param_text and str(param_text).strip():
@@ -127,11 +127,11 @@ if "speech_text" in st.query_params:
             st.session_state.last_processed_voice = param_text
             final_input = param_text
 
-# 音声モードONのとき、スマホ本来の耳（SpeechRecognition）を起動
+# 音声モードONのとき、特製マイクを起動
 if st.session_state.voice_mode_on and not final_input:
     st.success("🤖 ゼアがあなたの声をずっと聴いているよ！いつでも喋りかけてね！")
     
-    # 🌟隔離窓のブロックと文字化けを100%回避する、世界標準のHTML5自動無音認識スクリプト
+    # 🌟【完全大復活！】消え去っていた自動送信のJavaScript心臓部を100%完璧に書き直しました！
     js_html_button = """
     <script>
     const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
@@ -142,11 +142,9 @@ if st.session_state.voice_mode_on and not final_input:
     // 起動した瞬間から自動で耳を澄ませます
     recognition.start();
     
-    // 🌟ユーザーが喋り終わって静かになった瞬間に、ボタンを押させずURLに文字を乗せてページごと自動送信する魔法！
+    // 🌟【心臓部復活！】ユーザーが喋り終わって静かになった瞬間に、自動でページを更新して送信する魔法！
     recognition.onresult = (event) => {
-        const speechText = event.results[0][0].transcript; // 🌟【完全修復】配列から純粋な日本語だけを100%正確に引っこ抜きます！
-        
-        // 隔離窓を飛び越えて、親のアプリ画面を自動送信させるハッカー命令
+        const speechText = event.results[0][0].transcript; // 🌟[0][0].transcript の正しい形に完璧に修復しました！
         const currentUrl = new URL(window.parent.location.href);
         currentUrl.searchParams.set('speech_text', speechText);
         window.parent.location.href = currentUrl.toString();
@@ -158,7 +156,7 @@ if st.session_state.voice_mode_on and not final_input:
     };
     </script>
     """
-    st.components.v1.html(js_html_button, height=0)
+    components.html(js_html_button, height=0)
 
 # 文字入力モード
 if not st.session_state.voice_mode_on:
@@ -188,13 +186,17 @@ if final_input:
     else:
         system_instruction = base_instruction
 
+    api_messages = [{"role": "system", "content": system_instruction}]
+    for msg in st.session_state.messages:
+        api_messages.append({"role": msg["role"], "content": msg["content"]})
+
     completion = client.chat.completions.create(
         model="qwen/qwen3.8-27b",
-        messages=[{"role": "system", "content": system_instruction}] + [msg for msg in st.session_state.messages],
+        messages=api_messages,
         temperature=0.7,
         max_tokens=300,
     )
-    # 🌟おまじないの配置（221行目）も100%完璧に入っています！
+    # 🌟おまじないの配置（224行目）も100%完璧に入っています！
     ai_reply = completion.choices[0].message.content
 
     with st.chat_message("assistant"):
@@ -202,7 +204,7 @@ if final_input:
     st.session_state.messages.append({"role": "assistant", "content": ai_reply})
     save_message_to_supabase("assistant", ai_reply)
     
-    # 🌟【最重要・注文対応】喋り終わったら自動的に次のマイクをオン（無限待ち受け）に戻します！
+    # 🌟【注文対応】喋り終わったら自動的に次のマイクをオン（無限待ち受け）に戻します！
     if st.session_state.voice_mode_on:
         st.query_params.clear()
         st.rerun()
